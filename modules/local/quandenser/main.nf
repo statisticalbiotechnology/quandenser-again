@@ -39,7 +39,7 @@ process QUANDENSER {
     // Percolator throws above 128 threads (ext/percolator/src/Caller.cpp:632)
     // even though Quandenser's own validation accepts up to 1000.
     def nthreads = Math.min(task.cpus as int, 128)
-    def heap_mb  = Math.max(1024L, (long) (task.memory.toMega() * 0.5))
+    def heap_mb  = Math.max(1024L, (task.memory.toMega() * 0.5) as long)
     // Quandenser defaults this to numFiles/4, so leaving it unset makes the
     // result depend on how many runs are in the batch. Pin it when given.
     def max_missing = params.max_missing != null ? "--max-missing ${params.max_missing}" : ''

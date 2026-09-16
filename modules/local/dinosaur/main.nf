@@ -36,7 +36,7 @@ process DINOSAUR {
     // fatal under any scheduler that enforces the memory request. Derive the
     // heap from what the task was actually granted and leave the JVM room for
     // its non-heap overhead.
-    def heap_mb  = Math.max(1024L, (long) (task.memory.toMega() * 0.75))
+    def heap_mb  = Math.max(1024L, (task.memory.toMega() * 0.75) as long)
     """
     mkdir -p dinosaur
 
