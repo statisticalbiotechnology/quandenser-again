@@ -150,6 +150,15 @@ RUN set -eux; \
 # Quandenser itself, plus MaRaCluster and Percolator which build as
 # subdirectories, plus the Dinosaur jar which CMake builds with Maven at
 # configure time.
+# -include boost/assert.hpp compensates for a transitive include that Boost
+# withdrew. MaRaCluster uses BOOST_ASSERT in PvalueCalculator.cpp without
+# including <boost/assert.hpp>; it used to arrive by way of some other Boost
+# header, and with 1.86 it no longer does, so the file stops compiling. This is
+# the one place where the age gap between the pinned submodules and the Boost
+# that current ProteoWizard bundles shows up in code this project owns, rather
+# than in the header tree. Forcing the include is a smaller change than
+# carrying a patch against a submodule, and boost/assert.hpp is small and
+# idempotent, so applying it to every translation unit costs nothing.
 WORKDIR /build/quandenser
 RUN cmake \
         -DTARGET_ARCH=amd64 \
@@ -157,6 +166,7 @@ RUN cmake \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DBOOST_VARIANT_DO_NOT_USE_VARIADIC_TEMPLATES=ON \
         -DCMAKE_PREFIX_PATH=/build/tools \
+        -DCMAKE_CXX_FLAGS="-include boost/assert.hpp" \
         /src/quandenser \
     && make -j"${BUILD_JOBS}" \
     && make install
