@@ -130,6 +130,17 @@ single largest lever in the pipeline.
    tasks, stage them in, and the monolith walks straight past its slowest
    stage. This is what the pipeline does.
 
+   The command must match `src/DinosaurIO.cpp:51-56` and `:44` flag for flag,
+   or the features will differ from a monolithic run; treat those two lines as
+   the contract. One caveat worth knowing: the pipeline sets Dinosaur's
+   `--concurrency` from the task's CPU allocation, which need not equal the
+   `--dinosaur-threads` a monolithic run would have used. The seed is fixed and
+   the ChangeLog claims reproducibility given a seed, but if you are comparing
+   against a reference run, match the thread count too. Also note that
+   Quandenser tests for the file's *existence*, not its content, so a truncated
+   features file would be accepted silently; the module checks the file is
+   non-empty before emitting it.
+
 2. **Fix `--target-search-threshold` — one line, no pipeline needed.**
    `src/Quandenser.cpp:293-295` assigns it to `maxFeatureCandidates_` instead of
    `linkPEPMbrSearchThreshold_`, which is never settable from the CLI at all.
