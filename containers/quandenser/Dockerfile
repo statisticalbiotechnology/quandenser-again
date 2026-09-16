@@ -143,7 +143,13 @@ RUN set -eux; \
     test -f "${inc}/date_time/gregorian_calendar.ipp"; \
     test -f "${inc}/unordered/unordered_map.hpp"; \
     test -f "${inc}/asio/detail/reactive_socket_connect_op.hpp"; \
-    grep -q "BOOST_ASIO_CONSTEXPR" "${inc}/asio/detail/config.hpp"; \
+    grep -q "BOOST_ASIO_VERSION" "${inc}/asio/detail/config.hpp"; \
+    grep -q "BOOST_LIB_VERSION \"$(echo "${boost_name#boost_}" | cut -d_ -f1,2)\"" \
+         "${inc}/version.hpp"; \
+    if grep -q "define BOOST_ASIO_CONSTEXPR" "${inc}/asio/detail/config.hpp"; then \
+        echo "Boost.Asio still defines BOOST_ASIO_CONSTEXPR: the stale 1.18.2 overlay is back" >&2; \
+        exit 1; \
+    fi; \
     echo "${boost_name}" > /opt/boost-version; \
     cat /opt/boost-version
 
