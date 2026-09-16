@@ -82,6 +82,56 @@ for the container: not convenience, but the only place this dependency set is
 pinned at all. `containers/quandenser/Dockerfile` carries all six repairs,
 each with the reasoning next to it.
 
+### Quandenser only accepts one of the two valid retention-time units
+
+Found by running the pipeline on ordinary public test files, not by reading.
+
+Dinosaur always reports retention time in **minutes**. Quandenser compares
+those values directly against the mzML's scan start time
+(`src/SpectrumFiles.cpp:38`):
+
+```cpp
+if (it->intensity > 0.0 && it->rtStart <= rTime && it->rtEnd >= rTime) {
+```
+
+and `rTime` comes from `MaRaCluster`'s `SpectrumHandler::getRetentionTime`
+(`ext/maracluster/src/SpectrumHandler.cpp:221-227`), which returns the
+`scan start time` cvParam verbatim:
+
+```cpp
+return s->scanList.scans.back().cvParam(pwiz::cv::MS_scan_start_time).valueAs<double>();
+```
+
+No unit conversion, anywhere. The mzML standard permits either minutes or
+seconds and records which is meant in `unitName`. Quandenser reads the number
+and ignores the unit.
+
+So an mzML that declares seconds matches **no features at all**. Every MS2
+scan is discarded for having no precursor, and the run dies with
+
+```
+Error: could not find any ms2 spectra in the input files.
+...
+Exception caught: ERROR: Could not create minimum spanning tree for alignments.
+```
+
+The spectra are present and centroided; the file used here has 481 of them.
+The message blames the spectra, the real cause is a factor of sixty, and
+nothing in between says so. The authors' own files evidently used minutes,
+which is what `msconvert` writes from Thermo RAW, so this would never have
+shown up in their testing.
+
+This is the most user-facing defect found. The others stop a build, which is
+at least unambiguous; this one accepts the input, runs for a while, and then
+reports something that is not true.
+
+The pipeline converts the feature file's retention times when the mzML
+declares seconds (`modules/local/dinosaur/main.nf`). That is possible only
+because feature detection is a separate step — under `--parallel_feature_detection
+false`, where Quandenser runs Dinosaur internally, the bug is untouched. The
+real fix belongs in `SpectrumHandler::getRetentionTime`, which should honour
+`unitName`.
+
 ### The release channel is dead
 
 `.github/workflows/build_and_release.yml` builds six platform targets and is

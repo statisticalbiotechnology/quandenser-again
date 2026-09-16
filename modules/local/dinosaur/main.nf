@@ -58,6 +58,28 @@ process DINOSAUR {
         exit 1
     fi
 
+    # Put the feature retention times in the same unit as the mzML.
+    #
+    # Dinosaur always reports retention time in minutes. Quandenser compares
+    # those values directly against the mzML's scan start time
+    # (src/SpectrumFiles.cpp:38, it->rtStart <= rTime && it->rtEnd >= rTime),
+    # and MaRaCluster's SpectrumHandler::getRetentionTime returns that cvParam
+    # verbatim, with no unit conversion. An mzML that declares seconds, which
+    # is valid and common, therefore matches no features at all: every MS2 scan
+    # is discarded for having no precursor, and the run dies with "could not
+    # find any ms2 spectra in the input files" — a message that blames the
+    # spectra rather than the units. Converting here is the narrowest fix, and
+    # it is only possible because feature detection is a separate step.
+    rt_unit=\$(grep -m1 -o 'accession="MS:1000016"[^>]*' "${mzml}" \\
+               | grep -o 'unitName="[a-zA-Z]*"' | cut -d'"' -f2 || true)
+    echo "mzML scan start time unit: \${rt_unit:-unspecified}"
+    if [ "\${rt_unit}" = "second" ]; then
+        echo "Converting Dinosaur retention times from minutes to seconds"
+        awk -F'\\t' -v OFS='\\t' 'NR==1 {print; next} {\$4*=60; \$5*=60; \$6*=60; \$7*=60; print}' \\
+            "dinosaur/${mzml.baseName}.features.tsv" > "dinosaur/.rt.tmp"
+        mv "dinosaur/.rt.tmp" "dinosaur/${mzml.baseName}.features.tsv"
+    fi
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         dinosaur: 1.2.1
