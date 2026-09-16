@@ -19,7 +19,12 @@ To check the plumbing before committing real data to it:
 nextflow run statisticalbiotechnology/quandenser-again -profile test,docker --outdir results
 ```
 
-That downloads three small public mzML files and runs the whole pipeline.
+That downloads three small public mzML files and runs the real tools on them.
+It exercises the container, the parallel feature detection, both MaRaCluster
+passes and the retention-time alignment, but it does not run to completion:
+the files are too small for the targeted match-between-runs search to find any
+target PSMs. `conf/test.config` explains the details and why the option that
+would skip that stage cannot currently be used.
 
 ## Samplesheet
 

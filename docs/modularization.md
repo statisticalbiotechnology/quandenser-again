@@ -225,6 +225,12 @@ single largest lever in the pipeline.
    expensive stage in the tool cannot be turned off. Better value than any
    amount of workflow engineering.
 
+   This is no longer hypothetical. It is what stops `-profile test` from
+   completing: the BSA files are too small for the targeted search to find any
+   target PSMs, Percolator exits with "no target PSMs were provided", and the
+   documented way to skip that stage does not work. One line would give this
+   repository a smoke test that runs end to end in CI.
+
 3. **MaRaCluster p-value fan-out (steps 2 and 6) — roughly 150 lines.** The
    `.dat` files are already format-compatible with the stock `maracluster
    pvalue`/`overlap` subcommands, and MaRaCluster ships its own Nextflow
