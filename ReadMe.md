@@ -34,13 +34,15 @@ An installer for all major platforms (Windows, OS X, Ubuntu, etc.) can be found 
 If you prefer to compile from source, or are running on a different operating system, [click here](#installation-from-source).
 
 > **Note on building from source.** The build currently fails on a clean
-> machine. `ext/maracluster/admin/builders/install_proteowizard.sh` downloads
-> whatever ProteoWizard built most recently, but copies Boost headers from a
-> hard-coded `boost_1_76_0` directory that recent ProteoWizard releases no
-> longer contain. The copy fails, the script does not check for it, and the
-> compile dies later with a missing-header error that does not point at the
-> cause. `containers/quandenser/Dockerfile` works around it; see
-> [docs/modularization.md](docs/modularization.md).
+> machine, for two reasons.
+> `ext/maracluster/admin/builders/install_proteowizard.sh` downloads whatever
+> ProteoWizard built most recently, but copies Boost headers from a hard-coded
+> `boost_1_76_0` directory that recent ProteoWizard releases no longer contain;
+> the copy fails, the script does not check for it, and the compile dies later
+> with a missing-header error that does not point at the cause. Beyond that,
+> ProteoWizard now bundles a trimmed Boost with no `boost/unordered/`, which
+> the pinned Percolator needs. `containers/quandenser/Dockerfile` works around
+> both; see [docs/modularization.md](docs/modularization.md).
 
 An older Docker and Singularity wrapper exists in the
 [Quandenser-pipeline project](https://github.com/statisticalbiotechnology/quandenser-pipeline),

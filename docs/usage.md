@@ -61,9 +61,12 @@ results/
 ├── quandenser/
 │   ├── Quandenser.feature_groups.tsv  the quantification matrix
 │   ├── consensus_spectra/             .ms2 files to search
-│   └── maracluster/                   MS2 clusters
+│   ├── maracluster/                   MS2 clusters
+│   └── dinosaur/                      features as Quandenser saw them
 ├── triqler/                           only with --run_identification
-└── pipeline_info/                     timeline, report, trace, DAG, versions
+└── pipeline_info/
+    ├── batch.tsv                      run order, i.e. the fileIdx mapping
+    └── ...                            timeline, report, trace, DAG, versions
 ```
 
 `Quandenser.feature_groups.tsv` has **no header**. It is a sequence of
@@ -75,8 +78,9 @@ fileIdx  precMz  charge  rTime  intensity  spectrumId;linkPEP[,spectrumId;linkPE
 
 `fileIdx` is an integer index into the batch file, not a file name. The
 pipeline sorts the batch file by run name, so index 0 is the alphabetically
-first mzML, index 1 the second, and so on. `batch.tsv` is published alongside
-the results so the mapping is recoverable.
+first mzML, index 1 the second, and so on. The batch file itself is published
+as `pipeline_info/batch.tsv`, which is the only record of that mapping — keep
+it with the results.
 
 ## Identification and Triqler
 

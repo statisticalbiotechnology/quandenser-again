@@ -96,16 +96,37 @@ RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /buil
 # an error with no visible connection to its cause.
 #
 # Rather than track the version by hand, take the headers from whichever
-# boost_1_* directory the tarball actually contains, and assert afterwards
-# that the two headers which failed before are now present.
+# boost_1_* directory the tarball actually contains.
+#
+# That covers the .ipp files but not everything. ProteoWizard bundles a
+# *trimmed* Boost: its 1.86 tree has no boost/unordered/ at all, while the
+# pinned Percolator includes <boost/unordered/unordered_map.hpp>
+# (ext/percolator/src/Scores.h:38). So where a header is still missing after
+# the copy, fetch the matching upstream Boost release and fill only the gaps.
+# --ignore-existing means anything ProteoWizard ships, patched or not, wins;
+# and taking the same version keeps one Boost in the build rather than two.
 RUN set -eux; \
-    boost_src="$(ls -d /build/tools/proteowizard/libraries/boost_1_* | head -n1)"; \
-    echo "Completing Boost headers from ${boost_src}"; \
+    boost_dir="$(ls -d /build/tools/proteowizard/libraries/boost_1_*/ | head -n1)"; \
+    boost_name="$(basename "${boost_dir%/}")"; \
+    echo "Completing Boost headers from ${boost_name}"; \
     rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
-          "${boost_src}/boost/" /build/tools/include/boost/; \
+          "${boost_dir}boost/" /build/tools/include/boost/; \
+    if [ ! -f /build/tools/include/boost/unordered/unordered_map.hpp ]; then \
+        boost_ver="${boost_name#boost_}"; \
+        boost_dotted="$(echo "${boost_ver}" | tr '_' '.')"; \
+        echo "ProteoWizard's Boost is incomplete; filling gaps from upstream ${boost_dotted}"; \
+        wget --no-verbose -O /tmp/boost.tar.bz2 \
+             "https://archives.boost.io/release/${boost_dotted}/source/${boost_name}.tar.bz2"; \
+        mkdir -p /tmp/boostfull; \
+        tar xf /tmp/boost.tar.bz2 -C /tmp/boostfull; \
+        rsync -ap --ignore-existing \
+              --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
+              "/tmp/boostfull/${boost_name}/boost/" /build/tools/include/boost/; \
+        rm -rf /tmp/boostfull /tmp/boost.tar.bz2; \
+    fi; \
     test -f /build/tools/include/boost/date_time/gregorian_calendar.ipp; \
     test -f /build/tools/include/boost/unordered/unordered_map.hpp; \
-    basename "${boost_src}" > /opt/boost-version; \
+    echo "${boost_name}" > /opt/boost-version; \
     cat /opt/boost-version
 
 # Quandenser itself, plus MaRaCluster and Percolator which build as

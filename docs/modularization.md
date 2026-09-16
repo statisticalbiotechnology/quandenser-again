@@ -40,6 +40,18 @@ which has no visible connection to its cause. This was reproduced here, not
 inferred: a from-source build of this repository fails today, on a clean
 machine, for this reason.
 
+There is a second layer to it, found while repairing the first. Pointing the
+copy at whatever `boost_1_*` directory actually exists fixes the `.ipp` files
+but not the second error, because **ProteoWizard bundles a trimmed Boost**: its
+1.86 tree contains no `boost/unordered/` at all, while the pinned Percolator
+includes `<boost/unordered/unordered_map.hpp>`
+(`ext/percolator/src/Scores.h:38`). Older ProteoWizard bundles evidently
+carried it. So the build does not merely reference the wrong directory name —
+it depends on the contents of an upstream project's vendored dependency, which
+nobody here controls and which has since been pared down.
+`containers/quandenser/Dockerfile` handles this by filling only the gaps from
+the matching upstream Boost release, so exactly one Boost version is in play.
+
 A floating dependency pinned against a fixed version constant is a structural
 guarantee that a project breaks itself with no commits. That is how software
 with real users becomes software with none.

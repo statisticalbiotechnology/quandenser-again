@@ -35,9 +35,16 @@ workflow QUANDENSER_PIPELINE {
     // file list. That is why there is one file here and not two that could
     // drift apart.
     //
+    // Published, because it is the only record of which integer in column 0 of
+    // the feature-groups file corresponds to which run.
     ch_batch_file = ch_samplesheet
         .map { meta, mzml -> "${mzml.name}\t${meta.condition}" }
-        .collectFile(name: 'batch.tsv', newLine: true, sort: true)
+        .collectFile(
+            name: 'batch.tsv',
+            newLine: true,
+            sort: true,
+            storeDir: "${params.outdir}/pipeline_info"
+        )
 
     ch_mzmls = ch_samplesheet
         .map { _meta, mzml -> mzml }
