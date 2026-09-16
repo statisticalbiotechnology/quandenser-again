@@ -13,6 +13,13 @@
  * Feature detection is normally done by the DINOSAUR module and staged in
  * below, so the loop at src/Quandenser.cpp:547-572 finds its outputs already
  * present and skips straight to clustering.
+ *
+ * Note what is *not* passed: --verbatim. Quandenser forwards it to both
+ * MaRaCluster and Percolator (src/Quandenser.cpp:216-220), but Percolator has
+ * no such option, so setting it aborts the run at the feature-matching stage
+ * with "ERROR: the option --verbatim is invalid" — after Dinosaur and two
+ * MaRaCluster passes have already done their work. The default verbosity is
+ * what we want anyway.
  */
 
 process QUANDENSER {
@@ -78,7 +85,6 @@ process QUANDENSER {
         --num-threads ${nthreads} \\
         --dinosaur-threads ${nthreads} \\
         --dinosaur-memory ${heap_mb}M \\
-        --verbatim ${params.verbatim} \\
         --maracluster-pval-threshold ${params.maracluster_pvalue_cutoff} \\
         --align-mz-tol ${params.align_mz_tol} \\
         --align-rtime-tol ${params.align_rtime_tol} \\

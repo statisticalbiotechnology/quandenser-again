@@ -53,6 +53,21 @@ The mzML files must be peak-picked (centroided) on **both** MS1 and MS2 level.
 Quandenser does not do this for you, and neither does this pipeline. With
 ProteoWizard's `msconvert` that is `--filter "peakPicking true 1-"`.
 
+### A note on retention-time units
+
+Either unit is valid in mzML and the file records which it means in
+`unitName`. Quandenser reads the number and ignores the unit, while Dinosaur
+always reports minutes, so a file declaring seconds matches no features at
+all: every MS2 scan is dropped for having no precursor and the run fails with
+`could not find any ms2 spectra in the input files`, which is not what went
+wrong.
+
+The pipeline detects the unit and converts the feature file to match, so
+either kind of file works. This only applies on the default path, where
+feature detection is a separate step; with `--parallel_feature_detection
+false` Quandenser runs Dinosaur itself and the problem is untouched. See
+`docs/modularization.md`.
+
 ## What you get
 
 ```

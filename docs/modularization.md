@@ -319,6 +319,12 @@ necessary.
 - `-t/--percolator-test-fdr` writes into the *train* FDR option
   (`:261-267`), so setting only `-t` passes an empty string to Percolator. The
   pipeline always passes both FDRs together, which avoids this.
+- `-v/--verbatim` is forwarded to both MaRaCluster and Percolator
+  (`:216-220`). MaRaCluster accepts it; Percolator has no such option and
+  exits. Setting a documented verbosity flag therefore aborts the run at the
+  feature-matching stage with `ERROR: the option --verbatim is invalid`, after
+  Dinosaur and two full MaRaCluster passes have already completed. Found by
+  running it. The pipeline does not pass the flag.
 
 These are upstream bugs, not pipeline limitations. Exposing them as parameters
 would surface flags that do the wrong thing.
