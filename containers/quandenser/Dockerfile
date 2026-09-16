@@ -83,74 +83,67 @@ RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /buil
     && cp /build/tools/VERSION /opt/pwiz-version \
     && cat /opt/pwiz-version
 
-# Repair the Boost headers the upstream script fails to install.
+# Rebuild the Boost include tree from one consistent version.
 #
-# install_proteowizard.sh copies Boost's .ipp files from a hard-coded
-# libraries/boost_1_76_0/ (line 60), but the ProteoWizard tarball it fetches
-# from .lastSuccessful now ships boost_1_86_0. The directory does not exist,
-# rsync exits 23, and because the script has no `set -e` the failure is
-# swallowed. ProteoWizard's own `libraries` install target covers most headers
-# but not all of them, so the build then dies roughly a minute into `make`
-# with "boost/date_time/gregorian_calendar.ipp: No such file or directory"
-# and "boost/unordered/unordered_map.hpp: No such file or directory" —
-# an error with no visible connection to its cause.
+# install_proteowizard.sh leaves /build/tools/include/boost in a state that
+# does not compile, for three compounding reasons.
 #
-# Rather than track the version by hand, take the headers from whichever
-# boost_1_* directory the tarball actually contains.
+# 1. It copies Boost's .ipp files from a hard-coded libraries/boost_1_76_0/
+#    (its line 60), but the tarball it fetches from .lastSuccessful now ships
+#    boost_1_86_0. That directory does not exist, rsync exits 23, and since the
+#    script has no `set -e` the failure is discarded.
+# 2. ProteoWizard bundles a *trimmed* Boost. Its 1.86 tree has no
+#    boost/unordered/ at all, while the pinned Percolator includes
+#    <boost/unordered/unordered_map.hpp> (ext/percolator/src/Scores.h:38).
+# 3. The script finishes by unpacking boost_asio_1_18_2 from SourceForge and
+#    rsyncing its whole boost/ directory over the bundled headers (lines
+#    71-74), because Asio "is not included by the ProteoWizard boost tar but is
+#    needed for maracluster". That held for the Boost 1.76 bundle it was
+#    written against. It is now doubly wrong: the 1.86 bundle ships its own
+#    Asio, and that SourceForge archive is a *standalone* Asio distribution
+#    which carries its own copies of Boost.System, Boost.Config and others. So
+#    the overlay does not add a missing library, it back-ports a
+#    ten-release-old System and Asio over the current ones. The build fails
+#    inside Boost's own headers, with thousands of lines of
+#    "'BOOST_ASIO_CONSTEXPR' does not name a type" and "cannot convert
+#    'boost::system::error_code' to 'int'".
 #
-# That covers the .ipp files but not everything. ProteoWizard bundles a
-# *trimmed* Boost: its 1.86 tree has no boost/unordered/ at all, while the
-# pinned Percolator includes <boost/unordered/unordered_map.hpp>
-# (ext/percolator/src/Scores.h:38). So where a header is still missing after
-# the copy, fetch the matching upstream Boost release and fill the rest.
+# None of this is caused by the repair below: an untouched build of this
+# repository fails in boost/asio/ as well.
 #
-# Both copies are strictly additive (--ignore-existing), so whatever the
-# upstream script deliberately placed is left alone.
-#
-# Boost.Asio is the exception, and the third thing that has to be undone.
-# install_proteowizard.sh finishes by overlaying Boost.Asio 1.18.2 from
-# SourceForge onto the bundled headers (its lines 71-74), with the comment
-# that Asio "is not included by the ProteoWizard boost tar but is needed for
-# maracluster". That was true of the Boost 1.76 bundle it was written for.
-# The 1.86 bundle ships a complete Asio of its own, so the overlay no longer
-# replaces a missing library, it interleaves a ten-release-old one with the
-# current one: files present in both take the 1.18.2 version while the rest
-# stay at 1.86. The result does not compile, with a few thousand lines of
-# "'BOOST_ASIO_CONSTEXPR' does not name a type" and "redefinition of class
-# boost::asio::detail::initiate_dispatch". This is not caused by the repair
-# above; an untouched upstream build fails in boost/asio/ too.
-#
-# So let the bundled Boost's own Asio win, and keep one version throughout.
+# Patching the result file by file is a losing game, so discard the tree and
+# lay it down once, in order: the bundled Boost as the authoritative base,
+# then the matching upstream release to fill what ProteoWizard trimmed away,
+# then ProteoWizard's own boost_aux additions. The obsolete Asio overlay is
+# simply not reapplied.
 RUN set -eux; \
     boost_dir="$(ls -d /build/tools/proteowizard/libraries/boost_1_*/ | head -n1)"; \
     boost_name="$(basename "${boost_dir%/}")"; \
-    echo "Completing Boost headers from ${boost_name}"; \
+    boost_dotted="$(echo "${boost_name#boost_}" | tr '_' '.')"; \
+    inc=/build/tools/include/boost; \
+    echo "Rebuilding the Boost include tree from ${boost_name}"; \
+    rm -rf "${inc}"; \
+    rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" \
+              --include "*.h" --exclude "*" \
+          "${boost_dir}boost/" "${inc}/"; \
+    wget --no-verbose -O /tmp/boost.tar.bz2 \
+         "https://archives.boost.io/release/${boost_dotted}/source/${boost_name}.tar.bz2"; \
+    mkdir -p /tmp/boostfull; \
+    tar xf /tmp/boost.tar.bz2 -C /tmp/boostfull; \
     rsync -ap --ignore-existing \
-          --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
-          "${boost_dir}boost/" /build/tools/include/boost/; \
-    if [ -d "${boost_dir}boost/asio" ]; then \
-        echo "Replacing the stale Boost.Asio overlay with ${boost_name}'s own"; \
-        rm -rf /build/tools/include/boost/asio /build/tools/include/boost/asio.hpp; \
-        rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
-              "${boost_dir}boost/asio/" /build/tools/include/boost/asio/; \
-        [ -f "${boost_dir}boost/asio.hpp" ] && \
-            cp "${boost_dir}boost/asio.hpp" /build/tools/include/boost/asio.hpp; \
+              --include "*/" --include "*.hpp" --include "*.ipp" \
+              --include "*.h" --exclude "*" \
+          "/tmp/boostfull/${boost_name}/boost/" "${inc}/"; \
+    rm -rf /tmp/boostfull /tmp/boost.tar.bz2; \
+    if [ -d /build/tools/proteowizard/libraries/boost_aux/boost ]; then \
+        rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" \
+                  --include "*.h" --exclude "*" \
+              /build/tools/proteowizard/libraries/boost_aux/boost/ "${inc}/"; \
     fi; \
-    if [ ! -f /build/tools/include/boost/unordered/unordered_map.hpp ]; then \
-        boost_ver="${boost_name#boost_}"; \
-        boost_dotted="$(echo "${boost_ver}" | tr '_' '.')"; \
-        echo "ProteoWizard's Boost is incomplete; filling gaps from upstream ${boost_dotted}"; \
-        wget --no-verbose -O /tmp/boost.tar.bz2 \
-             "https://archives.boost.io/release/${boost_dotted}/source/${boost_name}.tar.bz2"; \
-        mkdir -p /tmp/boostfull; \
-        tar xf /tmp/boost.tar.bz2 -C /tmp/boostfull; \
-        rsync -ap --ignore-existing \
-              --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
-              "/tmp/boostfull/${boost_name}/boost/" /build/tools/include/boost/; \
-        rm -rf /tmp/boostfull /tmp/boost.tar.bz2; \
-    fi; \
-    test -f /build/tools/include/boost/date_time/gregorian_calendar.ipp; \
-    test -f /build/tools/include/boost/unordered/unordered_map.hpp; \
+    test -f "${inc}/date_time/gregorian_calendar.ipp"; \
+    test -f "${inc}/unordered/unordered_map.hpp"; \
+    test -f "${inc}/asio/detail/reactive_socket_connect_op.hpp"; \
+    grep -q "BOOST_ASIO_CONSTEXPR" "${inc}/asio/detail/config.hpp"; \
     echo "${boost_name}" > /opt/boost-version; \
     cat /opt/boost-version
 
