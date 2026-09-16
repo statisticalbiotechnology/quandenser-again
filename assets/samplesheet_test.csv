@@ -1,0 +1,4 @@
+sample,mzml,condition
+BSA1,https://raw.githubusercontent.com/nf-core/test-datasets/quantms/testdata/lfq_ci/BSA/BSA1_F1.mzML,A
+BSA2,https://raw.githubusercontent.com/nf-core/test-datasets/quantms/testdata/lfq_ci/BSA/BSA2_F1.mzML,B
+BSA3,https://raw.githubusercontent.com/nf-core/test-datasets/quantms/testdata/lfq_ci/BSA/BSA3_F1.mzML,B

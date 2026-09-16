@@ -34,3 +34,9 @@
 *.pyc
 admin/vagrant/*_output.txt
 bin/*
+
+# Nextflow
+.nextflow*
+work/
+results/
+*.nf.test.snap.actual
