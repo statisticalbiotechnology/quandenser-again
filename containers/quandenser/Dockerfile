@@ -102,15 +102,40 @@ RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /buil
 # *trimmed* Boost: its 1.86 tree has no boost/unordered/ at all, while the
 # pinned Percolator includes <boost/unordered/unordered_map.hpp>
 # (ext/percolator/src/Scores.h:38). So where a header is still missing after
-# the copy, fetch the matching upstream Boost release and fill only the gaps.
-# --ignore-existing means anything ProteoWizard ships, patched or not, wins;
-# and taking the same version keeps one Boost in the build rather than two.
+# the copy, fetch the matching upstream Boost release and fill the rest.
+#
+# Both copies are strictly additive (--ignore-existing), so whatever the
+# upstream script deliberately placed is left alone.
+#
+# Boost.Asio is the exception, and the third thing that has to be undone.
+# install_proteowizard.sh finishes by overlaying Boost.Asio 1.18.2 from
+# SourceForge onto the bundled headers (its lines 71-74), with the comment
+# that Asio "is not included by the ProteoWizard boost tar but is needed for
+# maracluster". That was true of the Boost 1.76 bundle it was written for.
+# The 1.86 bundle ships a complete Asio of its own, so the overlay no longer
+# replaces a missing library, it interleaves a ten-release-old one with the
+# current one: files present in both take the 1.18.2 version while the rest
+# stay at 1.86. The result does not compile, with a few thousand lines of
+# "'BOOST_ASIO_CONSTEXPR' does not name a type" and "redefinition of class
+# boost::asio::detail::initiate_dispatch". This is not caused by the repair
+# above; an untouched upstream build fails in boost/asio/ too.
+#
+# So let the bundled Boost's own Asio win, and keep one version throughout.
 RUN set -eux; \
     boost_dir="$(ls -d /build/tools/proteowizard/libraries/boost_1_*/ | head -n1)"; \
     boost_name="$(basename "${boost_dir%/}")"; \
     echo "Completing Boost headers from ${boost_name}"; \
-    rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
+    rsync -ap --ignore-existing \
+          --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
           "${boost_dir}boost/" /build/tools/include/boost/; \
+    if [ -d "${boost_dir}boost/asio" ]; then \
+        echo "Replacing the stale Boost.Asio overlay with ${boost_name}'s own"; \
+        rm -rf /build/tools/include/boost/asio /build/tools/include/boost/asio.hpp; \
+        rsync -ap --include "*/" --include "*.hpp" --include "*.ipp" --exclude "*" \
+              "${boost_dir}boost/asio/" /build/tools/include/boost/asio/; \
+        [ -f "${boost_dir}boost/asio.hpp" ] && \
+            cp "${boost_dir}boost/asio.hpp" /build/tools/include/boost/asio.hpp; \
+    fi; \
     if [ ! -f /build/tools/include/boost/unordered/unordered_map.hpp ]; then \
         boost_ver="${boost_name#boost_}"; \
         boost_dotted="$(echo "${boost_ver}" | tr '_' '.')"; \
