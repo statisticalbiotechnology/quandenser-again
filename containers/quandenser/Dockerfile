@@ -159,6 +159,11 @@ RUN set -eux; \
 # than in the header tree. Forcing the include is a smaller change than
 # carrying a patch against a submodule, and boost/assert.hpp is small and
 # idempotent, so applying it to every translation unit costs nothing.
+#
+# The path has to be absolute. CMake's own compiler probes compile with
+# CMAKE_CXX_FLAGS but without the project's include directories, so a bare
+# "-include boost/assert.hpp" fails during configure, long before anything in
+# this project is built.
 WORKDIR /build/quandenser
 RUN cmake \
         -DTARGET_ARCH=amd64 \
@@ -166,7 +171,7 @@ RUN cmake \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DBOOST_VARIANT_DO_NOT_USE_VARIADIC_TEMPLATES=ON \
         -DCMAKE_PREFIX_PATH=/build/tools \
-        -DCMAKE_CXX_FLAGS="-include boost/assert.hpp" \
+        -DCMAKE_CXX_FLAGS="-include /build/tools/include/boost/assert.hpp" \
         /src/quandenser \
     && make -j"${BUILD_JOBS}" \
     && make install
