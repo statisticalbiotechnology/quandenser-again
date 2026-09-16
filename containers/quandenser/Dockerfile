@@ -163,6 +163,26 @@ RUN set -eux; \
 # Quandenser itself, plus MaRaCluster and Percolator which build as
 # subdirectories, plus the Dinosaur jar which CMake builds with Maven at
 # configure time.
+# Align the C++ string ABI with the one ProteoWizard is actually built with.
+#
+# ext/maracluster/CommonCMake.txt sets _GLIBCXX_USE_CXX11_ABI=0
+# unconditionally (its lines 106-110), which selects the pre-C++11
+# std::basic_string. That matched the ProteoWizard of the day. bjam now builds
+# ProteoWizard with the current default, so its archives define
+# std::__cxx11::basic_string while everything compiled here references the old
+# one. The mangled names differ, so the link fails with undefined references
+# to functions the archives demonstrably contain: a symbol dump shows
+# pwiz::msdata::MSDataFile::MSDataFile defined, taking
+# std::__cxx11::basic_string, against an undefined reference taking
+# std::string.
+#
+# Everything else in this image is compiled from source in one pass, so moving
+# to the current ABI makes the whole build self-consistent, whereas keeping
+# ABI=0 would mean rebuilding ProteoWizard and Boost to match it.
+RUN sed -i 's/_GLIBCXX_USE_CXX11_ABI=0/_GLIBCXX_USE_CXX11_ABI=1/g' \
+        /src/quandenser/ext/maracluster/CommonCMake.txt \
+    && grep -n "_GLIBCXX_USE_CXX11_ABI" /src/quandenser/ext/maracluster/CommonCMake.txt
+
 # -include boost/assert.hpp compensates for a transitive include that Boost
 # withdrew. MaRaCluster uses BOOST_ASSERT in PvalueCalculator.cpp without
 # including <boost/assert.hpp>; it used to arrive by way of some other Boost
