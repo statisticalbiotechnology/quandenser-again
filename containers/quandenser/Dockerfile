@@ -147,6 +147,19 @@ RUN set -eux; \
     echo "${boost_name}" > /opt/boost-version; \
     cat /opt/boost-version
 
+# Give zstd the same unsuffixed symlink the Boost libraries get.
+#
+# ProteoWizard's bjam names its output libzstd-gcc11-mt-s.a, and
+# install_proteowizard.sh creates plain-name symlinks only for the Boost
+# components (its lines 66-68), because when it was written nothing else
+# needed one. Current ProteoWizard compresses binary data with zstd, so
+# libpwiz_data_msdata_core now references ZSTD_compress and friends, and with
+# no libzstd.a there is nothing for -lzstd to find.
+RUN set -eux; \
+    zstd_lib="$(ls /build/tools/lib/libzstd-*.a | head -n1)"; \
+    ln -sf "${zstd_lib}" /build/tools/lib/libzstd.a; \
+    ls -la /build/tools/lib/libzstd.a
+
 # Quandenser itself, plus MaRaCluster and Percolator which build as
 # subdirectories, plus the Dinosaur jar which CMake builds with Maven at
 # configure time.
@@ -164,6 +177,16 @@ RUN set -eux; \
 # CMAKE_CXX_FLAGS but without the project's include directories, so a bare
 # "-include boost/assert.hpp" fails during configure, long before anything in
 # this project is built.
+#
+# CMAKE_CXX_STANDARD_LIBRARIES appends to the end of the link line, which is
+# where the remaining two problems are fixed. These static archives reference
+# each other, and ld resolves a link line left to right in one pass, so
+# whichever order FindProteoWizard happens to produce leaves symbols such as
+# pwiz::msdata::MSDataFile::MSDataFile undefined even though the archive
+# defining them is right there. Repeating the set inside --start-group makes
+# ld iterate until nothing more resolves. The group also pulls in zstd, which
+# nothing in the CMake files knows about because ProteoWizard only started
+# compressing binary data with it after these build files were written.
 WORKDIR /build/quandenser
 RUN cmake \
         -DTARGET_ARCH=amd64 \
@@ -172,6 +195,14 @@ RUN cmake \
         -DBOOST_VARIANT_DO_NOT_USE_VARIADIC_TEMPLATES=ON \
         -DCMAKE_PREFIX_PATH=/build/tools \
         -DCMAKE_CXX_FLAGS="-include /build/tools/include/boost/assert.hpp" \
+        -DCMAKE_CXX_STANDARD_LIBRARIES="-Wl,--start-group \
+            -L/build/tools/lib \
+            -lpwiz_data_msdata -lpwiz_data_msdata_core -lpwiz_data_common \
+            -lpwiz_utility_misc -lpwiz_utility_minimxml -lSHA1 \
+            -lboost_serialization -lboost_iostreams -lboost_filesystem \
+            -lboost_system -lboost_thread -lboost_chrono -lboost_regex \
+            -lzstd -lzlib \
+            -Wl,--end-group" \
         /src/quandenser \
     && make -j"${BUILD_JOBS}" \
     && make install
