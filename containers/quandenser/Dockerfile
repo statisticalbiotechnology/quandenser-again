@@ -260,7 +260,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /tmp/extra-certs
 
 COPY --from=builder /usr/bin/quandenser /usr/bin/quandenser
-COPY --from=builder /usr/share/java/ /usr/share/java/
+# Only the three files Quandenser looks for. /usr/share/java in the builder
+# also holds every jar Maven brought in, which is some 150 files and tens of
+# megabytes that this image has no use for.
+COPY --from=builder /usr/share/java/Dinosaur-1.2.1.free.jar /usr/share/java/
+COPY --from=builder /usr/share/java/advParams_dinosaur.txt /usr/share/java/
+COPY --from=builder /usr/share/java/advParams_dinosaur_targeted.txt /usr/share/java/
 COPY --from=builder /opt/pwiz-version /opt/pwiz-version
 COPY --from=builder /opt/boost-version /opt/boost-version
 

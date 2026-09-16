@@ -5,9 +5,13 @@ in this repository. Line references are to `1aec399` (v0.03.2).
 
 ## 1. Why the tool was hard to run
 
-Three problems, in order of severity.
-
 ### The build breaks itself over time
+
+This is the core of it, and it is worse than it first looks. Getting the
+container to build took six separate repairs, each a different symptom of one
+cause: **the build tracks another project's vendored dependencies by
+hard-coded constants that nobody updates.** Every one was found by building,
+not by reading.
 
 `ext/maracluster/admin/builders/install_proteowizard.sh` fetches ProteoWizard
 from a floating pointer:
@@ -18,43 +22,65 @@ https://teamcity.labkey.org/guestAuth/repository/download/bt81/.lastSuccessful/V
 
 Whatever ProteoWizard's CI built most recently is what you get. At the time of
 writing that is **3.0.26258**; the `ChangeLog` records v0.03.2 as released
-against **3.0.22231**. Four years of drift, unrequested.
+against **3.0.22231**. Four years of drift, unrequested. Everything below
+follows from that one line.
 
-Line 60 of the same script is the other half:
+1. **The Boost directory name is hard-coded.** Line 60 copies `.ipp` files
+   from `libraries/boost_1_76_0/`; the tarball now ships `boost_1_86_0`. The
+   directory does not exist, rsync exits 23, and since the script has no
+   `set -e` the failure is discarded. The build dies a minute later with
+   `fatal error: boost/date_time/gregorian_calendar.ipp: No such file or
+   directory`, which has no visible connection to its cause.
 
-```sh
-rsync -ap --include "*/" --include '*.ipp' --exclude '*' libraries/boost_1_76_0/boost/ ../include/boost
-```
+2. **ProteoWizard bundles a trimmed Boost.** Its 1.86 tree has no
+   `boost/unordered/` at all, while the pinned Percolator includes
+   `<boost/unordered/unordered_map.hpp>` (`ext/percolator/src/Scores.h:38`).
+   So the build depends not merely on a directory name but on the *contents*
+   of an upstream project's vendored dependency.
 
-The Boost directory name is hard-coded. The tarball now ships `boost_1_86_0`,
-so the source directory does not exist, rsync exits 23, and because the script
-has no `set -e` the failure is discarded. The build then continues for another
-minute and dies with
+3. **The Boost.Asio overlay is obsolete and overreaching.** The script ends by
+   unpacking `boost_asio_1_18_2` from SourceForge over the bundled headers
+   (lines 71-74), because Asio "is not included by the ProteoWizard boost tar
+   but is needed for maracluster". That held for the Boost 1.76 bundle it was
+   written against. It is now doubly wrong: the 1.86 bundle ships its own Asio,
+   and that SourceForge archive is a *standalone* Asio distribution carrying
+   its own Boost.System, Boost.Config and more. The overlay therefore
+   back-ports a ten-release-old System next to the current Asio, and the build
+   fails inside Boost's own headers.
 
-```
-fatal error: boost/date_time/gregorian_calendar.ipp: No such file or directory
-fatal error: boost/unordered/unordered_map.hpp: No such file or directory
-```
+4. **A transitive include was withdrawn.** MaRaCluster's
+   `PvalueCalculator.cpp` uses `BOOST_ASSERT` without including
+   `<boost/assert.hpp>`; it used to arrive by way of another Boost header, and
+   with 1.86 it no longer does.
 
-which has no visible connection to its cause. This was reproduced here, not
-inferred: a from-source build of this repository fails today, on a clean
-machine, for this reason.
+5. **zstd is built but never linked.** Current ProteoWizard compresses binary
+   data with zstd, so `libpwiz_data_msdata_core` references it. bjam names the
+   archive `libzstd-gcc11-mt-s.a`, and the script creates plain-name symlinks
+   only for the Boost components (lines 66-68) because nothing else needed one
+   when it was written.
 
-There is a second layer to it, found while repairing the first. Pointing the
-copy at whatever `boost_1_*` directory actually exists fixes the `.ipp` files
-but not the second error, because **ProteoWizard bundles a trimmed Boost**: its
-1.86 tree contains no `boost/unordered/` at all, while the pinned Percolator
-includes `<boost/unordered/unordered_map.hpp>`
-(`ext/percolator/src/Scores.h:38`). Older ProteoWizard bundles evidently
-carried it. So the build does not merely reference the wrong directory name —
-it depends on the contents of an upstream project's vendored dependency, which
-nobody here controls and which has since been pared down.
-`containers/quandenser/Dockerfile` handles this by filling only the gaps from
-the matching upstream Boost release, so exactly one Boost version is in play.
+6. **The C++ string ABI no longer matches.** `ext/maracluster/CommonCMake.txt`
+   sets `_GLIBCXX_USE_CXX11_ABI=0` unconditionally (lines 106-110), selecting
+   the pre-C++11 `std::basic_string` to match the ProteoWizard of the day.
+   bjam now builds with the current default, so ProteoWizard's archives define
+   `std::__cxx11::basic_string` while everything compiled here references the
+   old one. A symbol dump makes it plain: `libpwiz_data_msdata.a` defines
+   `pwiz::msdata::MSDataFile::MSDataFile` taking `std::__cxx11::basic_string`,
+   against an undefined reference taking `std::string`.
 
-A floating dependency pinned against a fixed version constant is a structural
+Note the shape of this list. Not one of these is a mistake anybody made. Each
+was correct when written and each was invalidated by a release of a project
+this repository does not control. There is no commit that broke the build, so
+there is nothing to bisect, and the errors surface far from their causes: a
+hard-coded ABI flag from 2022 presents in 2026 as an undefined reference to a
+function that is demonstrably present in the archive being linked.
+
+A floating dependency pinned against fixed version constants is a structural
 guarantee that a project breaks itself with no commits. That is how software
-with real users becomes software with none.
+with real users becomes software with none, and it is the strongest argument
+for the container: not convenience, but the only place this dependency set is
+pinned at all. `containers/quandenser/Dockerfile` carries all six repairs,
+each with the reasoning next to it.
 
 ### The release channel is dead
 
@@ -261,10 +287,12 @@ following the ReadMe would not have them anyway.
 
 In the order I would do them:
 
-1. Pin ProteoWizard to a fixed version and make the Boost header copy resolve
-   the directory rather than hard-code it. Without this nothing else matters,
-   because nothing builds. `containers/quandenser/Dockerfile` contains a
-   working repair that could be moved upstream into MaRaCluster's script.
+1. Pin ProteoWizard to a fixed version, and stop tracking its vendored
+   dependencies by hard-coded constants. Without this nothing else matters,
+   because nothing builds. `containers/quandenser/Dockerfile` carries a
+   working set of repairs for all six symptoms, which could be moved upstream
+   into MaRaCluster's script and CMake files. Pinning would make most of them
+   unnecessary; the ABI flag and the zstd symlink would still need fixing.
 2. Fix the three option-parsing bugs listed above. All are one-liners.
 3. Lower the Dinosaur heap default from 24 GB to something a laptop has, and
    let an environment variable override the jar path.
