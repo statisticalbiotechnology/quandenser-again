@@ -217,7 +217,7 @@ single largest lever in the pipeline.
    features file would be accepted silently; the module checks the file is
    non-empty before emitting it.
 
-2. **Fix `--target-search-threshold` — one line, no pipeline needed.**
+2. **Fix `--target-search-threshold` — done, one line.**
    `src/Quandenser.cpp:293-295` assigns it to `maxFeatureCandidates_` instead of
    `linkPEPMbrSearchThreshold_`, which is never settable from the CLI at all.
    The documented behaviour — "setting this to 1.0 will cause the targeted
@@ -225,11 +225,11 @@ single largest lever in the pipeline.
    expensive stage in the tool cannot be turned off. Better value than any
    amount of workflow engineering.
 
-   This is no longer hypothetical. It is what stops `-profile test` from
-   completing: the BSA files are too small for the targeted search to find any
-   target PSMs, Percolator exits with "no target PSMs were provided", and the
-   documented way to skip that stage does not work. One line would give this
-   repository a smoke test that runs end to end in CI.
+   **Done.** It was what stopped `-profile test` from completing: the BSA
+   files are too small for the targeted search to find any target PSMs, and
+   Percolator exited with "no target PSMs were provided". With the option
+   fixed and set to 1.0, the smoke test runs to 320 feature groups and 255
+   consensus spectra.
 
 3. **MaRaCluster p-value fan-out (steps 2 and 6) — roughly 150 lines.** The
    `.dat` files are already format-compatible with the stock `maracluster
@@ -315,13 +315,29 @@ necessary.
 - **Percolator throws above 128 threads** even though Quandenser's validation
   accepts up to 1000.
 
-### Known-broken options, not exposed as parameters
+### Broken options
 
-- `-c/--ft-link-candidates` assigns to `linkPEPThreshold_` instead of
-  `maxFeatureCandidates_` (`src/Quandenser.cpp:289-291`), so setting it to 2
-  sets the PEP cut-off to 2.0 and disables it.
-- `-B/--target-search-threshold` assigns to `maxFeatureCandidates_`
-  (`:293-295`).
+Two are **fixed in this repository**, in `Quandenser::parseOptions`. They
+assigned to each other's variables:
+
+- `-c/--ft-link-candidates` assigned to `linkPEPThreshold_` instead of
+  `maxFeatureCandidates_`, so `-c 2` set the feature-link PEP cut-off to 2.0
+  and disabled it.
+- `-B/--target-search-threshold` assigned to `maxFeatureCandidates_`, writing
+  a 0.0-1.0 double into an int candidate count, while
+  `linkPEPMbrSearchThreshold_` was not reachable from the command line at all.
+  Its help text promises that 1.0 skips the targeted match-between-runs
+  search, and the guard honouring that exists
+  (`src/FeatureAlignment.cpp:102`), but nothing could set the value.
+
+The types settle the intent: `ft-link-candidates` parses an int in 1..100 and
+`maxFeatureCandidates_` is an int; `target-search-threshold` parses a double
+in 0..1 and `linkPEPMbrSearchThreshold_` is a float used as a posterior error
+probability. Both are now pipeline parameters, and
+`--target_search_threshold 1.0` is what lets `-profile test` finish.
+
+Two remain, and the pipeline works around them:
+
 - `-t/--percolator-test-fdr` writes into the *train* FDR option
   (`:261-267`), so setting only `-t` passes an empty string to Percolator. The
   pipeline always passes both FDRs together, which avoids this.
@@ -331,9 +347,6 @@ necessary.
   feature-matching stage with `ERROR: the option --verbatim is invalid`, after
   Dinosaur and two full MaRaCluster passes have already completed. Found by
   running it. The pipeline does not pass the flag.
-
-These are upstream bugs, not pipeline limitations. Exposing them as parameters
-would surface flags that do the wrong thing.
 
 ### The downstream half
 
