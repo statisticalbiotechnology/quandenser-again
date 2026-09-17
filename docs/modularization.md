@@ -362,13 +362,31 @@ following the ReadMe would not have them anyway.
 
 In the order I would do them:
 
-1. Pin ProteoWizard to a fixed version, and stop tracking its vendored
+1. **Done for the container.** Pin ProteoWizard and stop tracking its vendored
    dependencies by hard-coded constants. Without this nothing else matters,
-   because nothing builds. `containers/quandenser/Dockerfile` carries a
-   working set of repairs for all six symptoms, which could be moved upstream
-   into MaRaCluster's script and CMake files. Pinning would make most of them
-   unnecessary; the ABI flag and the zstd symlink would still need fixing.
-2. Fix the three option-parsing bugs listed above. All are one-liners.
+   because nothing builds.
+
+   `containers/quandenser/pin-proteowizard.sh` addresses the build by id on
+   the S3 bucket TeamCity redirects to, with a checksum, which is how
+   bioconda's own ProteoWizard recipe does it:
+
+   ```
+   https://mc-tca-01.s3.us-west-2.amazonaws.com/ProteoWizard/bt81/<build id>/pwiz-src-without-tv-<version>.tar.bz2
+   ```
+
+   The build no longer depends on TeamCity staying reachable, nor on what
+   ProteoWizard's CI happened to produce today. The same script removes the
+   Boost.Asio overlay: its SourceForge download is the last command in
+   `install_proteowizard.sh`, so a SourceForge outage failed the build over a
+   file the Dockerfile discards anyway.
+
+   The other repairs remain necessary because they concern what is *inside*
+   the pinned tarball — the trimmed Boost, the ABI flag, the zstd symlink, the
+   withdrawn transitive include. Moving the pin upstream into MaRaCluster's
+   script would let every consumer of that script benefit, not just this image.
+2. **Two of the three option-parsing bugs are fixed** (`--ft-link-candidates`
+   and `--target-search-threshold`). `--percolator-test-fdr` writing into the
+   train FDR option remains; it is a one-liner.
 3. Lower the Dinosaur heap default from 24 GB to something a laptop has, and
    let an environment variable override the jar path.
 4. Repair or replace the release workflow, and have it publish a container

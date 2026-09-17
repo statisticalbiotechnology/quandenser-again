@@ -220,3 +220,12 @@ nextflow run . -profile docker --input s.csv --quandenser_container quandenser:0
 Expect the build to take the better part of an hour, most of it compiling Boost
 and ProteoWizard. The other tools (Crux, Triqler) come from existing
 biocontainers.
+
+The ProteoWizard source is pinned by build id and checksum in
+`containers/quandenser/pin-proteowizard.sh`, so the same Dockerfile produces
+the same dependencies tomorrow. Upstream's build script instead fetches
+whatever ProteoWizard's CI built most recently, which is why this project's
+from-source build stopped working without anyone changing it. To move to a
+newer ProteoWizard, change `PWIZ_BUILD_ID`, `PWIZ_VERSION` and `PWIZ_SHA256`
+in the Dockerfile together and expect to revisit the Boost repair alongside
+them.

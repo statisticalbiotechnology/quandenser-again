@@ -75,11 +75,31 @@ COPY . /src/quandenser
 
 # ProteoWizard and Boost. This is the slow step: it compiles Boost and the
 # ProteoWizard data libraries with bjam and takes the better part of an hour.
-# The upstream script fetches whatever ProteoWizard last built on the LabKey
-# TeamCity server, so the version is not pinned; it is recorded in
-# /opt/pwiz-version inside the image so a given image is at least traceable.
+#
+# The source is pinned to one build. Upstream fetches whatever ProteoWizard's
+# CI built most recently, which is the single reason this repository's build
+# broke with no commit to it: every hard-coded constant paired with that
+# floating pointer went stale on someone else's release schedule. Change these
+# three values together, deliberately, and expect to revisit the Boost repair
+# below when you do.
+#
+# To move to a newer ProteoWizard, take the build id from the S3 redirect of
+#   https://teamcity.labkey.org/guestAuth/repository/download/bt81/.lastSuccessful/VERSION
+# and the checksum from the tarball it names.
+ARG PWIZ_BUILD_ID=4176587
+ARG PWIZ_VERSION="3 0 26258 7993a4e"
+ARG PWIZ_SHA256=d36afbb6736cc44ec5bbb38a482de9f2d4c3d962c2d6b059f423bccbff63e10d
+
+COPY containers/quandenser/pin-proteowizard.sh /usr/local/bin/pin-proteowizard.sh
+
 WORKDIR /build/tools
-RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /build/tools \
+RUN /usr/local/bin/pin-proteowizard.sh \
+        /build/tools \
+        "${PWIZ_BUILD_ID}" \
+        "${PWIZ_VERSION}" \
+        "${PWIZ_SHA256}" \
+        /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh \
+    && /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /build/tools \
     && cp /build/tools/VERSION /opt/pwiz-version \
     && cat /opt/pwiz-version
 
@@ -95,18 +115,15 @@ RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /buil
 # 2. ProteoWizard bundles a *trimmed* Boost. Its 1.86 tree has no
 #    boost/unordered/ at all, while the pinned Percolator includes
 #    <boost/unordered/unordered_map.hpp> (ext/percolator/src/Scores.h:38).
-# 3. The script finishes by unpacking boost_asio_1_18_2 from SourceForge and
-#    rsyncing its whole boost/ directory over the bundled headers (lines
-#    71-74), because Asio "is not included by the ProteoWizard boost tar but is
-#    needed for maracluster". That held for the Boost 1.76 bundle it was
-#    written against. It is now doubly wrong: the 1.86 bundle ships its own
-#    Asio, and that SourceForge archive is a *standalone* Asio distribution
-#    which carries its own copies of Boost.System, Boost.Config and others. So
-#    the overlay does not add a missing library, it back-ports a
-#    ten-release-old System and Asio over the current ones. The build fails
-#    inside Boost's own headers, with thousands of lines of
-#    "'BOOST_ASIO_CONSTEXPR' does not name a type" and "cannot convert
-#    'boost::system::error_code' to 'int'".
+# 3. The script used to finish by unpacking boost_asio_1_18_2 from SourceForge
+#    over the bundled headers, because Asio "is not included by the
+#    ProteoWizard boost tar but is needed for maracluster". That held for the
+#    Boost 1.76 bundle it was written against. It became doubly wrong: the 1.86
+#    bundle ships its own Asio, and that SourceForge archive is a *standalone*
+#    Asio distribution carrying its own Boost.System and Boost.Config, so the
+#    overlay back-ported a ten-release-old System next to the current Asio and
+#    the build failed inside Boost's own headers. pin-proteowizard.sh now
+#    removes that overlay before the script runs.
 #
 # None of this is caused by the repair below: an untouched build of this
 # repository fails in boost/asio/ as well.
@@ -114,8 +131,7 @@ RUN /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /buil
 # Patching the result file by file is a losing game, so discard the tree and
 # lay it down once, in order: the bundled Boost as the authoritative base,
 # then the matching upstream release to fill what ProteoWizard trimmed away,
-# then ProteoWizard's own boost_aux additions. The obsolete Asio overlay is
-# simply not reapplied.
+# then ProteoWizard's own boost_aux additions.
 RUN set -eux; \
     boost_dir="$(ls -d /build/tools/proteowizard/libraries/boost_1_*/ | head -n1)"; \
     boost_name="$(basename "${boost_dir%/}")"; \
