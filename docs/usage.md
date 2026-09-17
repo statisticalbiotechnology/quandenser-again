@@ -19,12 +19,11 @@ To check the plumbing before committing real data to it:
 nextflow run statisticalbiotechnology/quandenser-again -profile test,docker --outdir results
 ```
 
-That downloads three small public mzML files and runs the real tools on them.
-It exercises the container, the parallel feature detection, both MaRaCluster
-passes and the retention-time alignment, but it does not run to completion:
-the files are too small for the targeted match-between-runs search to find any
-target PSMs. `conf/test.config` explains the details and why the option that
-would skip that stage cannot currently be used.
+That downloads three small public mzML files and runs the real tools on them,
+through to feature groups and consensus spectra. Two settings in
+`conf/test.config` accommodate the size of that dataset rather than
+representing advice for a real analysis; both are explained where they are
+set.
 
 ## Samplesheet
 
@@ -144,11 +143,17 @@ numbering intact (see `docs/modularization.md`).
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
 | `--ft_link_cut` | `0.25` | PEP cut-off for matching features between runs. |
 | `--percolator_train_fdr` / `--percolator_test_fdr` | `0.02` | FDR thresholds for the internal Percolator. Always passed together, because passing only one triggers an upstream option-parsing bug. |
+| `--ft_link_candidates` | `null` | Candidates considered when matching features between runs. |
+| `--target_search_threshold` | `null` | Minimum PEP for re-searching a feature with a targeted search. `1.0` skips the targeted search, the second most expensive stage in the tool. |
 | `--quandenser_args` | `null` | Anything else, appended verbatim. |
 
-Quandenser's `--ft-link-candidates` and `--target-search-threshold` are
-deliberately not exposed: both assign to the wrong variable upstream, so they
-do not do what their help text says. See `docs/modularization.md`.
+The last two need a Quandenser built from this repository. In released 0.03.2
+they assign to each other's variables (`src/Quandenser.cpp:289-295`), so
+`--target-search-threshold` silently sets a candidate count and
+`--ft-link-candidates` silently overwrites the feature-link PEP cut-off. Both
+are accepted by an older binary rather than rejected, so the pipeline still
+runs against one; it just will not skip the targeted search. See
+`docs/modularization.md`.
 
 ### Identification and Triqler
 

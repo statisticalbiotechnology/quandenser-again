@@ -1,3 +1,12 @@
+unreleased
+* Fixed --target-search-threshold, which assigned to maxFeatureCandidates_
+  instead of linkPEPMbrSearchThreshold_. The documented behaviour of skipping
+  the targeted match-between-runs search by setting it to 1.0 now works, and
+  the threshold is settable from the command line at all for the first time.
+* Fixed --ft-link-candidates, which assigned to linkPEPThreshold_ instead of
+  maxFeatureCandidates_. Setting it used to overwrite the feature-link PEP
+  cut-off with a candidate count, disabling that cut-off.
+
 v0.03.2
 * Updated ProteoWizard (v3.0.22231)
 * Updated Dinosaur (v1.2.1) to fix Maven build

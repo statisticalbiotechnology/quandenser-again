@@ -287,11 +287,11 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   }
   
   if (cmd.optionSet("ft-link-candidates")) {
-    linkPEPThreshold_ = cmd.getInt("ft-link-candidates", 1, 100);
+    maxFeatureCandidates_ = cmd.getInt("ft-link-candidates", 1, 100);
   }
   
   if (cmd.optionSet("target-search-threshold")) {
-    maxFeatureCandidates_ = cmd.getDouble("target-search-threshold", 0.0, 1.0);
+    linkPEPMbrSearchThreshold_ = cmd.getDouble("target-search-threshold", 0.0, 1.0);
   }
   
   if (cmd.optionSet("decoy-offset")) {

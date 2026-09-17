@@ -2,13 +2,21 @@
  * Quandenser: MS2 clustering, retention-time alignment, match-between-runs,
  * feature grouping and consensus-spectrum generation.
  *
- * This runs the released binary unmodified. That is a deliberate constraint,
- * not a limitation we failed to overcome: the previous Nextflow port of this
- * tool (statisticalbiotechnology/quandenser-pipeline) drove Quandenser through
+ * Every flag used here exists in released Quandenser. That constraint is
+ * deliberate: the previous Nextflow port of this tool
+ * (statisticalbiotechnology/quandenser-pipeline) drove Quandenser through
  * --partial-1-dinosaur, --partial-2-maracluster and friends, which exist only
  * on a branch that was never merged. When that branch was abandoned the
- * pipeline became unrunnable, and it is unrunnable today. Every flag used
- * here exists in src/Quandenser.cpp on master.
+ * pipeline became unrunnable, and it is unrunnable today.
+ *
+ * Two flags, --ft-link-candidates and --target-search-threshold, need the
+ * two-line fix in src/Quandenser.cpp to do what their help text says; before
+ * it they assigned to each other's variables. The distinction from the old
+ * pipeline's fate matters: those options exist in released binaries and are
+ * accepted there, so an older Quandenser runs this pipeline rather than
+ * rejecting the command line, it merely does not skip the targeted search.
+ * The fix is on master here, not on a branch of its own. Both are left unset
+ * by default for that reason.
  *
  * Feature detection is normally done by the DINOSAUR module and staged in
  * below, so the loop at src/Quandenser.cpp:547-572 finds its outputs already
@@ -50,6 +58,10 @@ process QUANDENSER {
     // Quandenser defaults this to numFiles/4, so leaving it unset makes the
     // result depend on how many runs are in the batch. Pin it when given.
     def max_missing = params.max_missing != null ? "--max-missing ${params.max_missing}" : ''
+    // These two only behave as documented on a binary built from this
+    // repository; see the note in nextflow.config.
+    def ft_link_candidates = params.ft_link_candidates != null ? "--ft-link-candidates ${params.ft_link_candidates}" : ''
+    def target_search = params.target_search_threshold != null ? "--target-search-threshold ${params.target_search_threshold}" : ''
     """
     # MaRaCluster is parallelised purely with OpenMP and has no thread option
     # of its own; --num-threads never reaches it. Without this it takes every
@@ -93,6 +105,8 @@ process QUANDENSER {
         --percolator-train-fdr ${params.percolator_train_fdr} \\
         --percolator-test-fdr ${params.percolator_test_fdr} \\
         ${max_missing} \\
+        ${ft_link_candidates} \\
+        ${target_search} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
