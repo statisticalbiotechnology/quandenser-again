@@ -92,13 +92,22 @@ ARG PWIZ_SHA256=d36afbb6736cc44ec5bbb38a482de9f2d4c3d962c2d6b059f423bccbff63e10d
 
 COPY containers/quandenser/pin-proteowizard.sh /usr/local/bin/pin-proteowizard.sh
 
+# A copy of the pinned tarball, if one was put there. ProteoWizard's bucket
+# keeps only the newest CI build, so the pinned build id stops resolving after
+# a few days and a from-scratch build then fails at this step unless it finds
+# the source here (or at PWIZ_MIRROR_URL). The directory normally holds
+# nothing but .gitkeep.
+COPY containers/quandenser/cache/ /tmp/pwiz-cache/
+ARG PWIZ_MIRROR_URL=""
+
 WORKDIR /build/tools
-RUN /usr/local/bin/pin-proteowizard.sh \
+RUN PWIZ_MIRROR_URL="${PWIZ_MIRROR_URL}" /usr/local/bin/pin-proteowizard.sh \
         /build/tools \
         "${PWIZ_BUILD_ID}" \
         "${PWIZ_VERSION}" \
         "${PWIZ_SHA256}" \
         /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh \
+        /tmp/pwiz-cache \
     && /src/quandenser/ext/maracluster/admin/builders/install_proteowizard.sh /build/tools \
     && cp /build/tools/VERSION /opt/pwiz-version \
     && cat /opt/pwiz-version

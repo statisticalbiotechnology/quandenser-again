@@ -1,0 +1,3 @@
+# Optional: a copy of the pinned ProteoWizard tarball, see the Dockerfile.
+*
+!.gitignore

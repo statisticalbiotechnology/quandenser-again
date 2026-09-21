@@ -16,7 +16,18 @@
 # addresses it: by build id on the S3 bucket that TeamCity redirects to, with a
 # checksum. Nothing here needs TeamCity to stay reachable.
 #
-# Usage: pin-proteowizard.sh <tools_dir> <build_id> <version> <sha256> <script>
+# The bucket is not an archive. It keeps roughly the newest CI build and drops
+# the rest, so a build id stops resolving within days: on 2026-09-21 both the
+# id pinned here and the one current two hours earlier returned 403, leaving
+# only that morning's build. Pinning therefore fixes *what* is built, not that
+# it can still be fetched, and a from-scratch build needs a copy that does not
+# depend on the bucket.
+#
+# Sources are tried in order: a file placed in containers/quandenser/cache/,
+# then PWIZ_MIRROR_URL if set, then the bucket. Whichever answers, the checksum
+# decides whether it is the pinned source.
+#
+# Usage: pin-proteowizard.sh <tools_dir> <build_id> <version> <sha256> <script> [cache_dir]
 set -eu
 
 tools_dir=$1
@@ -24,6 +35,7 @@ build_id=$2
 version=$3
 sha256=$4
 script=$5
+cache_dir=${6:-}
 
 stem="pwiz-src-without-tv-$(echo "${version}" | tr ' ' '_')"
 url="https://mc-tca-01.s3.us-west-2.amazonaws.com/ProteoWizard/bt81/${build_id}/${stem}.tar.bz2"
@@ -35,8 +47,23 @@ cd "${tools_dir}"
 # it is what makes the rest of the script use our pinned copy.
 printf '%s' "${version}" > VERSION
 
-echo "Fetching pinned ProteoWizard ${version} (build ${build_id})"
-wget --no-verbose -O "${stem}.tar.bz2" "${url}"
+if [ -n "${cache_dir}" ] && [ -f "${cache_dir}/${stem}.tar.bz2" ]; then
+  echo "Using the cached ProteoWizard ${version} from ${cache_dir}"
+  cp "${cache_dir}/${stem}.tar.bz2" "${stem}.tar.bz2"
+elif [ -n "${PWIZ_MIRROR_URL:-}" ]; then
+  echo "Fetching pinned ProteoWizard ${version} from ${PWIZ_MIRROR_URL}"
+  wget --no-verbose -O "${stem}.tar.bz2" "${PWIZ_MIRROR_URL}"
+else
+  echo "Fetching pinned ProteoWizard ${version} (build ${build_id})"
+  if ! wget --no-verbose -O "${stem}.tar.bz2" "${url}"; then
+    rm -f "${stem}.tar.bz2"
+    echo "ERROR: ${url} could not be fetched." >&2
+    echo "The bucket keeps only the newest build, so a pinned id stops resolving." >&2
+    echo "Put ${stem}.tar.bz2 (sha256 ${sha256}) in containers/quandenser/cache/," >&2
+    echo "or point PWIZ_MIRROR_URL at a copy, or re-pin all three PWIZ_ args." >&2
+    exit 8
+  fi
+fi
 echo "${sha256}  ${stem}.tar.bz2" | sha256sum -c -
 
 # Neutralise the two fetches from the floating TeamCity pointer. The line that
