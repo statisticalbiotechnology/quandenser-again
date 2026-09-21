@@ -2,7 +2,7 @@ process CRUX_TIDE_INDEX {
     tag "${fasta.baseName}"
     label 'process_medium'
 
-    container 'quay.io/biocontainers/crux-toolkit:4.2--h9ee0642_0'
+    container 'quay.io/biocontainers/crux-toolkit:4.1--h503566f_3'
 
     input:
     path fasta
