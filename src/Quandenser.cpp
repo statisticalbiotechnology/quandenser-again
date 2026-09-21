@@ -137,6 +137,18 @@ bool Quandenser::parseOptions(int argc, char **argv) {
       "maracluster-mz-tol",
       "Mass tolerance for clustering fragment spectra with MaRaCluster in ppm (default: 20.0).",
       "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "consensus-method",
+      "Tolerance scale MaRaCluster uses when merging peaks into consensus spectra: \"thomson\" (default), which joins peaks within a fixed number of Thomson, or \"ppm\", which groups them within a fixed number of ppm and never joins two peaks of the same spectrum. The latter suits high-resolution fragment spectra. Needs a MaRaCluster that has the option; older builds reject it.",
+      "method");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "consensus-ppm-tol",
+      "Fragment m/z scatter between two spectra of a cluster, in ppm, used by --consensus-method ppm (default: 2.0).",
+      "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "consensus-max-peaks",
+      "Number of most intense peaks to keep in a consensus spectrum, 0 keeps all of them, used by --consensus-method ppm (default: 160).",
+      "int");
   cmd.defineOption("P",
       "align-mz-tol",
       "Mass tolerance for matching features between runs in ppm (default: 20.0).",
@@ -268,6 +280,33 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   
   if (cmd.optionSet("maracluster-mz-tol")) {
     MaRaClusterIO::setPrecursorTolerance(cmd.getDouble("maracluster-mz-tol", 0.0, 100000.0));
+  }
+
+  /* These three only steer MaRaCluster's consensus step, so they are forwarded
+     rather than stored. MaRaCluster validates the values; a build without the
+     options stops with "unknown option", which is the honest failure. */
+  if (cmd.optionSet("consensus-method")) {
+    std::string consensusMethod = cmd.options["consensus-method"];
+    if (consensusMethod != "thomson" && consensusMethod != "ppm") {
+      std::cerr << "Error: unknown consensus method " << consensusMethod
+                << ", use \"thomson\" or \"ppm\"." << std::endl;
+      return false;
+    }
+    maraclusterArgs_.push_back("--consensusMethod");
+    maraclusterArgs_.push_back(consensusMethod);
+  }
+
+  if (cmd.optionSet("consensus-ppm-tol")) {
+    /* just to test if the value is valid, MaRaCluster will parse the string */
+    cmd.getDouble("consensus-ppm-tol", 0.01, 1000.0);
+    maraclusterArgs_.push_back("--consensusPpmSigma");
+    maraclusterArgs_.push_back(cmd.options["consensus-ppm-tol"]);
+  }
+
+  if (cmd.optionSet("consensus-max-peaks")) {
+    cmd.getInt("consensus-max-peaks", 0, 100000);
+    maraclusterArgs_.push_back("--consensusMaxPeaks");
+    maraclusterArgs_.push_back(cmd.options["consensus-max-peaks"]);
   }
   
   if (cmd.optionSet("align-mz-tol")) {
