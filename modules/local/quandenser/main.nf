@@ -60,6 +60,10 @@ process QUANDENSER {
     def max_missing = params.max_missing != null ? "--max-missing ${params.max_missing}" : ''
     // These two only behave as documented on a binary built from this
     // repository; see the note in nextflow.config.
+    // MaRaCluster's consensus merge; see the note in nextflow.config.
+    def consensus_method = params.consensus_method != null ? "--consensus-method ${params.consensus_method}" : ''
+    def consensus_ppm_tol = params.consensus_ppm_tol != null ? "--consensus-ppm-tol ${params.consensus_ppm_tol}" : ''
+    def consensus_max_peaks = params.consensus_max_peaks != null ? "--consensus-max-peaks ${params.consensus_max_peaks}" : ''
     def ft_link_candidates = params.ft_link_candidates != null ? "--ft-link-candidates ${params.ft_link_candidates}" : ''
     def target_search = params.target_search_threshold != null ? "--target-search-threshold ${params.target_search_threshold}" : ''
     """
@@ -105,6 +109,9 @@ process QUANDENSER {
         --percolator-train-fdr ${params.percolator_train_fdr} \\
         --percolator-test-fdr ${params.percolator_test_fdr} \\
         ${max_missing} \\
+        ${consensus_method} \\
+        ${consensus_ppm_tol} \\
+        ${consensus_max_peaks} \\
         ${ft_link_candidates} \\
         ${target_search} \\
         ${args}
