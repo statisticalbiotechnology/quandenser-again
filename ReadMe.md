@@ -27,6 +27,12 @@ See [docs/usage.md](docs/usage.md) for the samplesheet format and parameters,
 and [docs/modularization.md](docs/modularization.md) for how the pipeline is
 put together and why.
 
+[docs/dia-feasibility.md](docs/dia-feasibility.md) records a study of whether
+Quandenser can be extended to data-independent acquisition. Its conclusions on
+library-free identification are negative and were expensive to reach, so read
+it before starting down that road; the quantification-first linking result at
+the end is the part that works.
+
 ## Installation
 
 An installer for all major platforms (Windows, OS X, Ubuntu, etc.) can be found on the Release page. Java 8 or later has to be installed.
