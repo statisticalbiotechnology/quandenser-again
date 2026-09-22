@@ -39,4 +39,9 @@ bin/*
 .nextflow*
 work/
 results/
+# Per-run launch directories and samplesheets: both name absolute paths on the
+# machine the analysis ran on, so they are local state rather than pipeline
+# source.
+runs/
+sheets/
 *.nf.test.snap.actual

@@ -1,0 +1,13 @@
+# The image build copies this repository wholesale (Dockerfile: COPY .
+# /src/quandenser), so whatever a run leaves behind is copied into the builder
+# layer and invalidates the cache from that step onward. One PXD004863 series
+# leaves 4.5 GB in work/ and 2.2 GB in results/, which is how this was noticed.
+#
+# containers/quandenser/cache/ is deliberately *not* ignored: the build reads
+# the pinned ProteoWizard tarball from there when the upstream bucket has
+# dropped it.
+work/
+results/
+runs/
+sheets/
+.nextflow*
