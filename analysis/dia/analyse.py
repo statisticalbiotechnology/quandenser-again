@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Both channels on real DIA data, and the independence question."""
-import pickle
+import sys, pickle
 import numpy as np
 from scipy.stats import spearmanr
+
+TRACES = sys.argv[1] if len(sys.argv) > 1 else 'dia_traces.pkl'
 
 PROTON = 1.00727646
 SHIFTS = np.array([s * d for d in range(6, 61) for s in (-1, 1)], float)
@@ -41,7 +43,7 @@ def count_pairs(mz, target, tol=TOL):
     return (tot - self_hits) // 2
 
 
-peps = pickle.load(open('dia_traces.pkl', 'rb'))
+peps = pickle.load(open(TRACES, 'rb'))
 print(f'{len(peps)} peptides\n')
 
 # ---- channel 1: fragment trace vs MS1 precursor trace ----

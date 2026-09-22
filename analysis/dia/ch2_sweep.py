@@ -7,8 +7,10 @@ test that showed the statistic working used denoised 65-peak spectra.  Judging
 channel 2 on the raw peak list would be blaming co-isolation for something
 denoising fixes, so the statistic is rerun on the top-N most intense peaks.
 """
-import pickle
+import sys, pickle
 import numpy as np
+
+TRACES = sys.argv[1] if len(sys.argv) > 1 else 'dia_traces.pkl'
 
 PROTON = 1.00727646
 SHIFTS = np.array([s * d for d in range(6, 61) for s in (-1, 1)], float)
@@ -24,7 +26,7 @@ def count_pairs(mz, target, tol):
     return (tot - self_hits) // 2
 
 
-peps = pickle.load(open('dia_traces.pkl', 'rb'))
+peps = pickle.load(open(TRACES, 'rb'))
 npk = np.array([len(p['spec_mz']) for p in peps])
 print(f'{len(peps)} peptides, merged spectrum peaks: median {np.median(npk):.0f}, '
       f'q10 {np.percentile(npk,10):.0f}, q90 {np.percentile(npk,90):.0f}')

@@ -6,9 +6,11 @@ If channel 2's hits fall on the peptides channel 1 already gets right, the two
 are redundant and combining them buys nothing.  If they fall preferentially
 where channel 1 is weak, the combination is worth building.
 """
-import pickle
+import sys, pickle
 import numpy as np
 from scipy.stats import spearmanr
+
+TRACES = sys.argv[1] if len(sys.argv) > 1 else 'dia_traces.pkl'
 
 PROTON = 1.00727646
 SHIFTS = np.array([s * d for d in range(6, 61) for s in (-1, 1)], float)
@@ -29,7 +31,7 @@ def count_pairs(mz, target, tol=TOL):
     return (tot - int(np.sum(np.abs(2 * mz - target) <= tol))) // 2
 
 
-peps = pickle.load(open('dia_traces.pkl', 'rb'))
+peps = pickle.load(open(TRACES, 'rb'))
 c1_own = np.full(len(peps), np.nan)
 c1_osw = np.array([p['xcorr'] for p in peps])
 c2_p = np.full(len(peps), np.nan)

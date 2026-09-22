@@ -1,6 +1,8 @@
+import sys
 import numpy as np
 PROTON=1.00727646
-p='/home/user/csf/results/quandenser/consensus_spectra/Quandenser.consensus.part1.ms2'
+p=sys.argv[1] if len(sys.argv)>1 else \
+    '/home/user/csf/results/quandenser/consensus_spectra/Quandenser.consensus.part1.ms2'
 z=mh=None; mz=[]; rows=[]
 for line in open(p):
     c=line[0]

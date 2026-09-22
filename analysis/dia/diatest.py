@@ -18,15 +18,32 @@ a null here; the mass-shift null is used instead.
 
 Independence.  The two scores are computed on the same peptides, so their
 rank correlation answers directly whether combining them can help.
+
+    python3 diatest.py <run> [centroid|ppm] [ppm sigma]
+
+The second argument picks how the MS2 scans over the elution are merged into
+the spectrum channel 2 is counted on; see MERGE below.
 """
-import sys, re, random, pickle, collections, zlib
+import sys, os, re, random, pickle, collections, zlib
 import numpy as np
 from pyteomics import mzxml
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import consensusmerge
+
 RUN = sys.argv[1] if len(sys.argv) > 1 else '18484_REP3_1ug_Ecoli_NewStock2_SWATH_1'
+# How the MS2 scans over the elution are merged into one spectrum.  'centroid'
+# is the fixed 0.05 Th grouping this script has always used; 'ppm' is
+# MaRaCluster's PpmConsensusMerge, ported in ../consensusmerge.py.  The scatter
+# is an instrument property: 2 ppm is the Orbitrap default in MaRaCluster and
+# far too tight for the TripleTOF data used here, so measure it with
+# fragscatter.py rather than trusting the default.
+MERGE = sys.argv[2] if len(sys.argv) > 2 else 'centroid'
+PPM_SIGMA = float(sys.argv[3]) if len(sys.argv) > 3 else 20.0
 MZXML = RUN + '.mzXML'
 MPROPH = f'split_{RUN}_mprophet_all_peakgroups_DDA.xls'
-OUTPKL = f'traces_{RUN}.pkl'
+OUTPKL = (f'traces_{RUN}.pkl' if MERGE == 'centroid'
+          else f'traces_{RUN}_ppm{PPM_SIGMA:g}.pkl')
 SPTXT = 'Ecoli_DDA_CombinedLib.sptxt'
 PROTON = 1.00727646
 QCUT = 0.01
@@ -224,7 +241,13 @@ def main():
         # than concatenating them: concatenated scans repeat every fragment once
         # per cycle, which multiplies the accidental pair count without adding
         # any information.  Peaks within FRAG_TOL are summed.
-        if p['sum_mz']:
+        if p['sum_mz'] and MERGE == 'ppm':
+            # every scan of the elution is one member of the cluster.  The peak
+            # cap is off: ch2_sweep.py does its own denoising, and capping here
+            # would decide the mass range before the statistic sees it.
+            p['spec_mz'], p['spec_int'] = consensusmerge.merge_ppm(
+                list(zip(p['sum_mz'], p['sum_int'])), PPM_SIGMA, 4.0, 0)
+        elif p['sum_mz']:
             mz = np.concatenate(p['sum_mz']); it = np.concatenate(p['sum_int'])
             o = np.argsort(mz); mz, it = mz[o], it[o]
             grp = np.concatenate([[0], np.cumsum(np.diff(mz) > FRAG_TOL)])

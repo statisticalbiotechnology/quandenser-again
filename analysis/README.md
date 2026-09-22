@@ -15,6 +15,10 @@ the attempts that were wrong. `docs/dia-feasibility.md` is the version to read.
 
     pip install numpy scipy pyteomics psims lxml scikit-learn
 
+`consensusmerge_check.py` also needs g++ and the Boost headers
+(`apt-get install libboost-dev`), which it uses to compile MaRaCluster's two
+merges on their own and check the ports in `consensusmerge.py` against them.
+
 ## Data layout
 
 The scripts expect two directories. Nothing here is committed; all of it is
@@ -70,11 +74,17 @@ minutes.
 
 ### DDA, channel 2
 
-    comp_pairs.py          consensus spectra. Superseded: MaRaCluster bins
-                           peaks, so consensus spectra cannot support a 0.01 Da
-                           test. Kept because that is worth knowing.
-    range.py               shows why: 60% of charge-4 consensus spectra have no
-                           peak above half the precursor-pair sum.
+    consensus_merge.py     consensus spectra under both merges, from clusters
+                           defined by the PEAKS identifications. Takes
+                           --ppm-sigma, --max-peaks and --min-size.
+    comp_pairs.py [ms2]    consensus spectra. Was superseded because
+                           MaRaCluster bins peaks and consensus spectra could
+                           not support a 0.01 Da test; rerun it on the output
+                           of consensus_merge.py to see whether the ppm merge
+                           settles that.
+    range.py [ms2]         shows why it was superseded: 60% of charge-4
+                           consensus spectra have no peak above half the
+                           precursor-pair sum.
     comp_pairs_mzml.py     all MS2 from the mzML, both pair relations.
     compare_mgf_mzml.py    control. Confirms the deposited MGF is a denoised
                            subset of the mzML peaks and not deisotoped.
@@ -93,10 +103,19 @@ minutes.
 
     scores.py              OpenSWATH sub-scores against its own decoys.
     combine.py             are co-elution and identity independent. No.
-    diatest.py <run>       library fragment traces and merged window spectra.
-    analyse.py             both channels at the fragment level.
-    ch2_sweep.py           channel 2 with denoising.
-    indep.py               independence with a channel-2 score that has signal.
+    fragscatter.py <run>   fragment m/z scatter between two scans of one
+                           window, which is what a ppm tolerance has to be set
+                           from. The 2 ppm default is an Orbitrap number.
+    diatest.py <run> [merge] [sigma]
+                           library fragment traces and merged window spectra.
+                           The merge is 'centroid', the fixed 0.05 Th grouping
+                           used throughout, or 'ppm', MaRaCluster's ppm
+                           consensus merge with the peak cap off. The ppm form
+                           writes traces_<run>_ppm<sigma>.pkl, so both can be
+                           kept side by side.
+    analyse.py [pkl]       both channels at the fragment level.
+    ch2_sweep.py [pkl]     channel 2 with denoising.
+    indep.py [pkl]         independence with a channel-2 score that has signal.
     crossdia.py            cross-run pooling on DIA.
 
 ### DIA, quantification-first linking
@@ -119,6 +138,28 @@ minutes.
 `linkreal.py`, `linkvalue.py`, `yield.py` and `redundancy.py` read helper
 definitions out of `linkfull.py` and `yield.py` with `exec`, so those files
 must stay next to them.
+
+## The two consensus merges
+
+`consensusmerge.py` holds Python ports of both of MaRaCluster's merges, the
+Thomson one the pipeline uses by default and the ppm one it gained with
+`--consensus-method ppm`. `consensusmerge_check.py` compiles
+`ext/maracluster/src/{PpmConsensusMerge,MSClusterMerge}.cpp` unmodified against
+stub headers and compares the two on random clusters; the Thomson port is
+bit-exact and the ppm port agrees to 4e-9 ppm.
+
+Rerunning the two measurements the merge bears on:
+
+    # DDA, the caveat about consensus spectra
+    python3 dda/consensus_merge.py --max-peaks 0
+    python3 dda/range.py consensus_thomson.ms2
+    python3 dda/range.py consensus_ppm2_max0.ms2
+    python3 dda/comp_pairs.py consensus_ppm2_max0.ms2
+
+    # DIA, channel 2 on merged window spectra
+    python3 dia/fragscatter.py <run>                 # pick sigma from this
+    python3 dia/diatest.py <run> ppm <sigma>
+    python3 dia/ch2_sweep.py traces_<run>_ppm<sigma>.pkl
 
 ## Traps met along the way
 
