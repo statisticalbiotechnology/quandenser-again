@@ -53,7 +53,11 @@ def main():
             continue
         if c in prev:
             pmz, pit = prev[c]
-            sel = np.argpartition(pit, -TOPN)[-TOPN:]
+            # The size guard above applies to this scan, but the peaks are
+            # taken from the previous one, which the same guard may have
+            # stored with fewer than TOPN peaks.
+            topn = min(TOPN, pit.size)
+            sel = np.argpartition(pit, -topn)[-topn:]
             targets = np.sort(pmz[sel])
             d = match(pmz, mz, targets)
             keep = np.abs(d) <= MAX_PPM
