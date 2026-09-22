@@ -302,10 +302,19 @@ produce a quantification matrix, which is the point.
 - The MS1 feature detection used here has no isotope grouping and no charge
   deconvolution. Dinosaur would change the feature set; the obvious redundancy
   was collapsed after the fact rather than avoided.
-- Consensus spectra from MaRaCluster are binned and cannot support a 0.01 Da
-  test. Any fragment-level work must use the original spectra. 60% of charge-4
-  consensus spectra have no peak above half the precursor-pair sum, so no
-  complementary pair is constructible in them at all.
+- Consensus spectra were binned when this was measured, and could not support
+  a 0.01 Da test. That half has since been fixed: `--consensus-method ppm`
+  merges on a ppm scale without pre-binning the members, and 0.0% of its
+  consensus peaks lie more than 10 ppm from a peak of some member spectrum,
+  against 16.3% under the default merge. The default is still the binned one,
+  so the statement holds for any run that does not set the option.
+- The second half stands. 60% of charge-4 consensus spectra have no peak above
+  half the precursor-pair sum, so no complementary pair is constructible in
+  them at all. Both merges keep only the 160 most intense peaks and both
+  discount peaks occurring in few members, which is what removes the weak
+  high-mass fragments, so the ppm merge does not address this. It is switchable
+  with `--consensus-max-peaks 0`; whether that recovers the mass range is a
+  rerun of `analysis/dda/range.py` and has not been done.
 
 ## What to test next
 
