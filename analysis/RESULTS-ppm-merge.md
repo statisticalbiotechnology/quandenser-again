@@ -152,6 +152,57 @@ whose identity is already known, while DIA-NN reconstructs 7,671 peptides from
 the same file with no library at all. The measurement stands as a statement
 about the evidence channel, not as an identification method.
 
+### Channel 2 against DIA-NN's identifications as the truth set
+
+The channel-2 test scores library peptides against decoys, so what counts as a
+library peptide is a choice. DIA-NN's own identifications are a second, larger
+truth set: 9,560 precursors against the 4,710 OpenSWATH library peptides that
+fall in these windows.
+
+    python3 diann_as_library.py <diann_out> <run> <dir>   # new, writes the two
+                                                          # filenames diatest.py reads
+    python3 diatest.py <run>                              # in that directory
+    python3 diatest.py <run> ppm 13.39
+    python3 ch2_sweep.py traces_<run>.pkl
+    python3 ch2_sweep.py traces_<run>_ppm13.39.pkl
+
+9,560 precursors were written to the library and all of them had a peak group
+at q <= 0.01. `diatest.py` caps the test at `MAX_PEP = 6000` (its line 51), so
+6,000 peptides were used against 4,710 for OpenSWATH: the two truth sets are
+not compared at equal size.
+
+| top-N | tol | OpenSWATH centroid | OpenSWATH ppm | DIA-NN centroid | DIA-NN ppm |
+|---|---|---:|---:|---:|---:|
+| 50 | 0.02 | 4.0% | 6.1% | 2.5% | 3.9% |
+| 50 | 0.05 | 4.1% | 4.6% | 2.8% | 3.6% |
+| 100 | 0.02 | 3.8% | **6.8%** | 2.3% | 4.8% |
+| 100 | 0.05 | 3.7% | 4.0% | 2.6% | 3.8% |
+| 200 | 0.02 | 2.5% | 6.4% | 1.5% | **5.1%** |
+| 200 | 0.05 | 2.9% | 4.6% | 1.8% | 4.5% |
+| 500 | 0.02 | 0.8% | 3.5% | 0.7% | 3.0% |
+| 500 | 0.05 | 0.8% | 3.3% | 0.7% | 3.3% |
+| all | 0.02 | 0.3% | 0.5% | 0.4% | 0.4% |
+| all | 0.05 | 0.2% | 0.6% | 0.1% | 0.7% |
+
+Beats-all rates, null 0.90% throughout.
+
+Every rate is lower on the DIA-NN set, by roughly a third at the better
+operating points: 3.8% to 2.3% for centroid and 6.8% to 4.8% for ppm at top-100
+and 0.02 Da. That is what a larger truth set should do here, since DIA-NN
+reaches further down in abundance than the DDA-derived library does, and the
+peptides it adds carry weaker evidence of every kind.
+
+What does not change is the comparison the rerun was for: ppm beats centroid at
+every operating point on both truth sets, by a factor of about two at the peak
+(6.8 vs 3.8, and 5.1 vs 1.5). The merge effect is a property of the merge; the
+absolute rate is a property of which peptides you decided to test.
+
+Both truth sets are co-elution-derived, so neither is independent of channel 1,
+and DIA-NN's is the less independent of the two: its library fragments were
+selected and calibrated on this same run. That makes the DIA-NN column the more
+optimistic one in principle, which makes it worth noting that it came out
+lower.
+
 Two things had to be fixed before DIA-NN would run at all, both worth knowing
 for anyone repeating this:
 
