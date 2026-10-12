@@ -24,8 +24,13 @@ def parseSamplesheet(csv_path) {
             }
             def meta = [
                 id       : row.sample,
-                condition: row.condition ?: 'A'
+                condition: row.condition ?: 'A',
+                // timsTOF only: an MS1-only mzML for biosaur2, see modules/local/biosaur2
+                ms1_mzml : row.ms1_mzml ?: null
             ]
+            if (meta.ms1_mzml) {
+                file(meta.ms1_mzml, checkIfExists: true)
+            }
             [ meta, file(row.mzml, checkIfExists: true) ]
         }
 }
@@ -58,6 +63,10 @@ workflow {
                 error("Quandenser needs at least two runs to align; got ${names.size()}.")
             }
         }
+
+    if (!(params.feature_detector in ['dinosaur', 'biosaur2'])) {
+        error("--feature_detector must be 'dinosaur' or 'biosaur2', not '${params.feature_detector}'.")
+    }
 
     if (params.run_identification && !params.fasta) {
         error("--run_identification needs a protein database. Pass --fasta <file.fasta>.")

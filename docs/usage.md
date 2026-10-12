@@ -72,6 +72,44 @@ feature detection is a separate step; with `--parallel_feature_detection
 false` Quandenser runs Dinosaur itself and the problem is untouched. See
 `docs/modularization.md`.
 
+## timsTOF data
+
+Dinosaur cannot read ion mobility, so timsTOF runs need biosaur2 for MS1
+feature detection:
+
+```bash
+nextflow run . -profile docker --input pasef.csv \
+    --feature_detector biosaur2 --target_search_threshold 1.0
+```
+
+`--target_search_threshold 1.0` skips Quandenser's targeted match-between-runs
+search, which would call Dinosaur on the timsTOF file; feature-to-feature
+matching between runs is unaffected.
+
+Each run needs two mzML files from the same `.d`: one for biosaur2 with raw MS1
+peaks and a per-peak ion-mobility array, and one for Quandenser with the PASEF
+MS2 spectra. `tdf2mzml` converts both on Linux, using Bruker's SDK:
+
+```bash
+tdf2mzml -i run.d --ms1_type raw --ion_mobility array --compression zlib -o run.ms1im.mzML
+tdf2mzml -i run.d --ms1_type centroid --ion_mobility none --compression zlib -o run.mzML
+```
+
+(`docker.io/mfreitas/tdf2mzml:0.6.1_noentry`.) The samplesheet names both:
+
+```csv
+sample,mzml,condition,ms1_mzml
+run4448,/data/4448.mzML,A,/data/4448.ms1im.mzML
+```
+
+biosaur2 runs single-process, because its exact fast path only applies with
+`-nprocs 1`; it also needs numpy < 2 and falls back to the slow original code
+otherwise. The container in `containers/biosaur2` checks both at build time.
+Extra biosaur2 arguments go in `--biosaur2_args`.
+
+Quandenser has no ion-mobility dimension, so biosaur2's `im` column is dropped
+and MS2 spectra are tied to features by m/z and retention time only.
+
 ## What you get
 
 ```

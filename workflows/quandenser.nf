@@ -3,6 +3,7 @@
  */
 
 include { DINOSAUR          } from '../modules/local/dinosaur/main'
+include { BIOSAUR2          } from '../modules/local/biosaur2/main'
 include { QUANDENSER        } from '../modules/local/quandenser/main'
 include { CRUX_TIDE_INDEX   } from '../modules/local/crux/tideindex/main'
 include { CRUX_TIDE_SEARCH  } from '../modules/local/crux/tidesearch/main'
@@ -59,7 +60,18 @@ workflow QUANDENSER_PIPELINE {
     // them back in turns the longest stage from N sequential JVM invocations
     // into N concurrent ones, without changing a line of Quandenser.
     //
-    if (params.parallel_feature_detection) {
+    if (params.parallel_feature_detection && params.feature_detector == 'biosaur2') {
+        // biosaur2 reads the MS1-only file when one is given (timsTOF), and
+        // the run's own mzML otherwise.
+        BIOSAUR2(
+            ch_samplesheet.map { meta, mzml ->
+                [ meta, mzml, meta.ms1_mzml ? file(meta.ms1_mzml) : mzml ]
+            }
+        )
+        ch_versions = ch_versions.mix(BIOSAUR2.out.versions.first())
+        ch_features = BIOSAUR2.out.features.map { _meta, tsv -> tsv }.collect()
+    }
+    else if (params.parallel_feature_detection) {
         DINOSAUR( ch_samplesheet )
         ch_versions = ch_versions.mix(DINOSAUR.out.versions.first())
         ch_features = DINOSAUR.out.features.map { _meta, tsv -> tsv }.collect()

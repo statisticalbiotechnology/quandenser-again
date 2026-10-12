@@ -34,6 +34,8 @@
 *.pyc
 admin/vagrant/*_output.txt
 bin/*
+# ...except Nextflow helper scripts, which the pipeline runs from bin/
+!bin/*.py
 
 # Nextflow
 .nextflow*
