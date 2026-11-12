@@ -11,8 +11,13 @@
 # it; the build checks that the fast path is actually live.
 #
 #   docker build -t biosaur2:2e7c9a1 containers/biosaur2
+#
+# A fork or branch builds the same way:
+#   docker build --build-arg BIOSAUR2_REPO=https://github.com/statisticalbiotechnology/biosaur2.git \
+#                --build-arg BIOSAUR2_COMMIT=caa800e -t biosaur2:caa800e containers/biosaur2
 FROM python:3.12-slim
 
+ARG BIOSAUR2_REPO=https://github.com/markmipt/biosaur2.git
 ARG BIOSAUR2_COMMIT=2e7c9a1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir "numpy==1.26.4" Cython setuptools wheel \
     && pip install --no-cache-dir --no-build-isolation \
-        "git+https://github.com/markmipt/biosaur2.git@${BIOSAUR2_COMMIT}" \
+        "git+${BIOSAUR2_REPO}@${BIOSAUR2_COMMIT}" \
     && python -c "import biosaur2.fastpath as f, sys; sys.exit(0 if f.FAST_OK else 'biosaur2 fast path is not active')" \
     && biosaur2 -h > /dev/null
 
