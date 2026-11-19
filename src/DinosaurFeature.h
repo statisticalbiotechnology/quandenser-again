@@ -20,13 +20,17 @@
 namespace quandenser {
 
 /*
- mz      mostAbundantMz  charge  rtStart rtApex  rtEnd   fwhm    nIsotopes       nScans  averagineCorr   mass    massCalib       intensityApex   intensitySum
+ mz      mostAbundantMz  charge  rtStart rtApex  rtEnd   fwhm    nIsotopes       nScans  averagineCorr   mass    massCalib       intensityApex   intensitySum    [ionMobility]
+ 
+ ionMobility (1/K0) is an optional 15th column, written for timsTOF data by
+ bin/biosaur2_to_dinosaur.py; it is 0 for Dinosaur's own output.
  **/
 struct DinosaurFeature {
   float precMz, rTime, intensity;
   float rtStart, rtEnd;
   int charge;
   int fileIdx, featureIdx;
+  float ionMobility;
 };
 
 } /* namespace quandenser */

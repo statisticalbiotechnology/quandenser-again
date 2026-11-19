@@ -113,6 +113,7 @@ DinosaurFeature DinosaurIO::parseDinosaurFeatureRow(std::string& line) {
   reader.readDouble(); // massCalib
   reader.readDouble(); // intensityApex
   ft.intensity = static_cast<float>(reader.readDouble()); // intensitySum
+  ft.ionMobility = static_cast<float>(reader.readDouble()); // ionMobility, read as 0 if the column is absent
   
   return ft;
 }

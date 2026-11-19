@@ -62,13 +62,21 @@ class FeatureAlignment {
       std::vector<std::string>& percolatorArgs,
       float ppmTol, float rTimeStdevTol, float decoyOffset,
       float linkPEPThreshold, float linkPEPMbrSearchThreshold,
-      int maxFeatureCandidates) : 
+      int maxFeatureCandidates, float ionMobilityTol = 0.0f) : 
     percolatorOutputFileBaseFN_(percolatorOutputFileBaseFN), 
     percolatorArgs_(percolatorArgs), 
     ppmTol_(ppmTol), rTimeStdevTol_(rTimeStdevTol), decoyOffset_(decoyOffset),
     linkPEPThreshold_(linkPEPThreshold), 
     linkPEPMbrSearchThreshold_(linkPEPMbrSearchThreshold),
-    maxFeatureCandidates_(maxFeatureCandidates) {}
+    maxFeatureCandidates_(maxFeatureCandidates),
+    ionMobilityTol_(ionMobilityTol),
+    linkFeatureNames_(kLinkFeatureNames) {
+    /* only with a tolerance set, so that runs without ion mobility keep
+       exactly the feature set they always had */
+    if (ionMobilityTol_ > 0.0f) {
+      linkFeatureNames_.push_back(std::make_pair("ionMobilityDiff", -1.0));
+    }
+  }
   
   void matchFeatures(
     const std::vector<std::pair<int, FilePair> >& featureAlignmentQueue,
@@ -104,10 +112,13 @@ class FeatureAlignment {
   float decoyOffset_;
   float linkPEPThreshold_, linkPEPMbrSearchThreshold_;
   int maxFeatureCandidates_;
+  /* 1/K0 tolerance for matching features between runs; 0 ignores ion mobility */
+  float ionMobilityTol_;
   
   std::map<FilePair, std::map<int, FeatureIdxMatch> > featureMatches_;
   
   static const std::vector<std::pair<std::string, double> > kLinkFeatureNames;
+  std::vector<std::pair<std::string, double> > linkFeatureNames_;
   
   void getFeatureMap(FilePair& filePair, 
     const std::string& targetMzMLFile,
@@ -144,6 +155,8 @@ class FeatureAlignment {
   }
   double getXicRateDiff(const DinosaurFeature& queryFeature, 
     const DinosaurFeature& targetFeature);
+  float getIonMobilityDiff(const DinosaurFeature& targetFeature, 
+    const DinosaurFeature& queryFeature);
   double getXicRate(const double intensity, 
     const double rtStart, const double rtEnd);
   

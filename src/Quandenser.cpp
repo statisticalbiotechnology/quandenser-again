@@ -26,7 +26,7 @@ Quandenser::Quandenser() : call_(""), fnPrefix_("Quandenser"), seed_(1u),
     numThreads_(4u), maxMissingValues_(-1), intensityScoreThreshold_(0.5),
     spectrumBatchFileFN_(""), outputFolder_("Quandenser_output"),
     outputSpectrumFile_(""), maraclusterPpmTol_(20.0f),
-    alignPpmTol_(20.0f), alignRTimeStdevTol_(10.0f), 
+    alignPpmTol_(20.0f), alignRTimeStdevTol_(10.0f), alignIonMobilityTol_(0.0f),
     decoyOffset_(5.0 * 1.000508),
     linkPEPThreshold_(0.25), linkPEPMbrSearchThreshold_(0.05),
     maxFeatureCandidates_(2), useTempFiles_(false) {}
@@ -156,6 +156,10 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   cmd.defineOption("r",
       "align-rtime-tol",
       "Retention time tolerance for matching feature between runs in number of standard deviations of the retention time alignment (default: 10.0).",
+      "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "align-im-tol",
+      "Ion mobility (1/K0) tolerance for matching features between runs, for feature files with an ionMobility column; 0 ignores ion mobility (default: 0.0).",
       "double");
   cmd.defineOption("I",
       "intensity-score-cut",
@@ -315,6 +319,10 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   
   if (cmd.optionSet("align-rtime-tol")) {
     alignRTimeStdevTol_ = cmd.getDouble("align-rtime-tol", 0.0, 1000.0);
+  }
+  
+  if (cmd.optionSet("align-im-tol")) {
+    alignIonMobilityTol_ = cmd.getDouble("align-im-tol", 0.0, 10.0);
   }
   
   if (cmd.optionSet("intensity-score-cut")) {
@@ -686,7 +694,7 @@ int Quandenser::run() {
   
   FeatureAlignment featureAlignment(percolatorFolder.string(), percolatorArgs_, 
       alignPpmTol_, alignRTimeStdevTol_, decoyOffset_, linkPEPThreshold_, 
-      linkPEPMbrSearchThreshold_, maxFeatureCandidates_);
+      linkPEPMbrSearchThreshold_, maxFeatureCandidates_, alignIonMobilityTol_);
   featureAlignment.matchFeatures(featureAlignmentQueue, fileList, 
       alignRetention, allFeatures, tmpFilePrefixAlign);
   

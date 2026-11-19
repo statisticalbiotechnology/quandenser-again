@@ -184,7 +184,7 @@ void FeatureAlignment::matchFeatures(
   
   PercolatorAdapter percolatorAdapter;
   percolatorAdapter.parseOptions(percolatorArgs);
-  percolatorAdapter.init(kLinkFeatureNames);
+  percolatorAdapter.init(linkFeatureNames_);
   
   DinosaurFeatureList::const_iterator queryIt, targetIt;
   std::vector<double>::const_iterator predRTimeIt;
@@ -274,7 +274,8 @@ void FeatureAlignment::findMatches(int label, double rTimeTol,
   DinosaurFeatureList::const_iterator targetIt;
   for (targetIt = lowerBound; targetIt != upperBound; ++targetIt) {
     float rTimeDiff = std::abs(targetIt->rTime - queryFeature.rTime);
-    if (targetIt->charge == queryFeature.charge && rTimeDiff <= rTimeTol) {
+    if (targetIt->charge == queryFeature.charge && rTimeDiff <= rTimeTol &&
+        getIonMobilityDiff(*targetIt, queryFeature) <= ionMobilityTol_) {
       DinosaurFeature targetFeature = *targetIt;
       float ppmDiff = getPpmDiff(targetIt->precMz, queryFeature.precMz);
       float score = rTimeDiff / rTimeTol + ppmDiff / ppmTol_; /* score <= 1.0 */
@@ -314,8 +315,22 @@ void FeatureAlignment::addLinkPsm(int label,
                     (queryFeature.charge > 4 && charge == 4)) ? 1 : 0;
     features.push_back(isCharge);
   }
+  if (ionMobilityTol_ > 0.0f) {
+    features.push_back(getIonMobilityDiff(targetFeature, queryFeature));
+  }
   
   percolatorAdapter.addPsm(querySpecId, label, scannr, peptide, features);
+}
+
+/* 0 when ion mobility is off or either feature lacks it, so that such pairs
+   pass the tolerance as they did before */
+float FeatureAlignment::getIonMobilityDiff(const DinosaurFeature& targetFt, 
+    const DinosaurFeature& queryFt) {
+  if (ionMobilityTol_ <= 0.0f || targetFt.ionMobility <= 0.0f || 
+      queryFt.ionMobility <= 0.0f) {
+    return 0.0f;
+  }
+  return std::abs(targetFt.ionMobility - queryFt.ionMobility);
 }
 
 double FeatureAlignment::getXicRateDiff(const DinosaurFeature& queryFt, 
@@ -428,7 +443,7 @@ void FeatureAlignment::processDinosaurTargets(
     */
     
     percolatorAdapter.parseOptions(percolatorArgs);  
-    percolatorAdapter.init(kLinkFeatureNames);
+    percolatorAdapter.init(linkFeatureNames_);
   }
   
   std::ifstream dinosaurOutputStream(dinosaurTargetOutputFile.c_str(), ios::in);
@@ -507,6 +522,8 @@ DinosaurFeature FeatureAlignment::parsePsmIdAsFeature(const std::string& specId)
   
   next = specId.find_first_of("_", prev);
   ft.charge = boost::lexical_cast<int>(specId.substr(prev, next - prev));
+  
+  ft.ionMobility = 0.0f; /* not part of the id; only featureIdx is used from here */
   
   return ft;
 }

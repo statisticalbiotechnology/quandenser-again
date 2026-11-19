@@ -178,6 +178,7 @@ numbering intact (see `docs/modularization.md`).
 | `--maracluster_pvalue_cutoff` | `-10.0` | log(p) threshold for MS2 clustering. |
 | `--align_mz_tol` | `20.0` | Mass tolerance for matching features between runs, ppm. |
 | `--align_rtime_tol` | `10.0` | Retention-time tolerance, in standard deviations of the alignment. |
+| `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
 | `--ft_link_cut` | `0.25` | PEP cut-off for matching features between runs. |
 | `--percolator_train_fdr` / `--percolator_test_fdr` | `0.02` | FDR thresholds for the internal Percolator. Always passed together, because passing only one triggers an upstream option-parsing bug. |

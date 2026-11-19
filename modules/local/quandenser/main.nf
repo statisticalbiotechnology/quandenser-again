@@ -66,6 +66,7 @@ process QUANDENSER {
     def consensus_max_peaks = params.consensus_max_peaks != null ? "--consensus-max-peaks ${params.consensus_max_peaks}" : ''
     def ft_link_candidates = params.ft_link_candidates != null ? "--ft-link-candidates ${params.ft_link_candidates}" : ''
     def target_search = params.target_search_threshold != null ? "--target-search-threshold ${params.target_search_threshold}" : ''
+    def align_im_tol = params.align_im_tol != null ? "--align-im-tol ${params.align_im_tol}" : ''
     """
     # MaRaCluster is parallelised purely with OpenMP and has no thread option
     # of its own; --num-threads never reaches it. Without this it takes every
@@ -114,6 +115,7 @@ process QUANDENSER {
         ${consensus_max_peaks} \\
         ${ft_link_candidates} \\
         ${target_search} \\
+        ${align_im_tol} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
