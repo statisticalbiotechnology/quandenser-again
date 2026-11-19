@@ -107,8 +107,17 @@ biosaur2 runs single-process, because its exact fast path only applies with
 otherwise. The container in `containers/biosaur2` checks both at build time.
 Extra biosaur2 arguments go in `--biosaur2_args`.
 
-Quandenser has no ion-mobility dimension, so biosaur2's `im` column is dropped
-and MS2 spectra are tied to features by m/z and retention time only.
+biosaur2 needs about 10 GB of memory per GB of `.ms1im.mzML`, so a two-hour
+run (7 GB) does not fit in one piece. `--biosaur2_chunk_minutes 20` processes
+each run in 20-minute retention-time chunks with 2 minutes of overlap on each
+side, and keeps every feature from the chunk whose core holds its apex. On a
+PXD039875 run, 4-minute chunks gave the same features as one piece (526,276
+against 526,215) and the same precursor coverage.
+
+biosaur2 reports each feature's ion mobility (1/K0). `--align_im_tol 0.03`
+makes Quandenser require it to agree within that tolerance when matching
+features between runs. MS2 spectra are still tied to features by m/z and
+retention time only.
 
 ## What you get
 

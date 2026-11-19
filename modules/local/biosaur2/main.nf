@@ -42,10 +42,14 @@ process BIOSAUR2 {
 
     script:
     def args = task.ext.args ?: ''
+    // Long runs in retention-time chunks, which bounds memory; see the script.
+    def run = params.biosaur2_chunk_minutes ?
+        "biosaur2_chunked.py ${ms1_mzml} biosaur2.features.tsv ${params.biosaur2_chunk_minutes}" :
+        "biosaur2 ${ms1_mzml} -o biosaur2.features.tsv"
     """
     mkdir -p dinosaur
 
-    biosaur2 ${ms1_mzml} -o biosaur2.features.tsv -nprocs 1 ${args}
+    ${run} -nprocs 1 ${args}
 
     # Quandenser tests for existence, not for content (src/Quandenser.cpp:558).
     if [ ! -s biosaur2.features.tsv ] || [ \$(wc -l < biosaur2.features.tsv) -lt 2 ]; then

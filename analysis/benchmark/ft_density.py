@@ -10,8 +10,9 @@ nothing to learn from and match-between-runs finds no links.
 
     ft_density.py <query features.tsv> <target features.tsv>
 
-Reads biosaur2's own output (with an `im` column) or the Dinosaur-layout
-files the pipeline writes; ion-mobility rows are skipped for the latter.
+Reads biosaur2's own output (ion mobility in `im`) or the Dinosaur-layout
+files the pipeline writes (in `ionMobility`, when present); the ion-mobility
+rows are skipped for files without it.
 """
 import csv
 import sys
@@ -25,7 +26,8 @@ TOLERANCES = [(20, 3.0, None), (20, 1.0, None), (10, 1.0, None), (10, 0.5, None)
 
 def load(path):
     with open(path) as fh:
-        rows = [(float(x['mz']), int(float(x['charge'])), float(x['rtApex']), float(x.get('im') or 'nan'))
+        rows = [(float(x['mz']), int(float(x['charge'])), float(x['rtApex']),
+                 float(x.get('im') or x.get('ionMobility') or 'nan'))
                 for x in csv.DictReader(fh, delimiter='\t')]
     a = np.array(rows)
     return a[np.argsort(a[:, 0])]
