@@ -55,7 +55,9 @@ to 0 is more accurate.
 ## timsTOF: PXD039875 (plasma, dda-PASEF)
 
 Six plasma runs on the same gradient (4324, 4342, 4353, 4403, 4448, 4471),
-about 59,000 PASEF precursors each. Features came from biosaur2 caa800e;
+about 59,000 PASEF precursors each. The method is a short one
+(`RAH_short_method`): each run lasts 11.5 min, and 90% of features have
+their apex between 3.2 and 11.2 min. The Orbitrap runs above span 12–131 min. Features came from biosaur2 caa800e;
 Quandenser ran with `--max_missing 2 --target_search_threshold 1.0`. The
 pipeline finished, but two stages that work on Orbitrap fail here.
 
@@ -67,11 +69,31 @@ pipeline finished, but two stages that work on Orbitrap fail here.
 | PXD039875, biosaur2 | 600k–750k | 0–1,201 | 7,878 |
 
 biosaur2 reports six times more features per run on PASEF data than either
-detector does on Orbitrap. In run 4324, 42% of them span two MS1 frames,
-and 94% are narrower than 5 s. A peptide eluting over 10–20 s is cut into several short
-features. Quandenser's feature-to-feature matching then cannot separate true
-partners from decoys. RT alignment itself works: every run pair has
-15,600–25,900 alignment pairs and a combined RMSE of 0.17–0.24 min.
+detector does on Orbitrap, packed into an eight-minute window. In run 4324,
+42% of them span two MS1 frames, and 94% are narrower than 5 s.
+
+RT alignment itself works: every run pair has 15,600–25,900 alignment pairs
+and a combined RMSE of 0.17–0.24 min. Quandenser searches for a feature's
+partner within `--align_rtime_tol` (10) times that RMSE, 2–4 min, and within
+`--align_mz_tol` (20 ppm). On an Orbitrap run that window is a small slice
+of a two-hour gradient. Here it is a third of the run. Decoy candidates (the
+same window at m/z + 5.0025) are then almost as common as real ones.
+
+The table shows the share of features in one run that have a candidate
+partner in the next, from `ft_density.py`. It was run on 4324 → 4342
+(biosaur2 03ed8d5) and on PXD002370 C-R1 → C-R2 (Dinosaur).
+
+| tolerance | Orbitrap: target | decoy | PASEF: target | decoy |
+|---|---:|---:|---:|---:|
+| 20 ppm, ±3 min | 78% | 24% | 95% | 93% |
+| 10 ppm, ±1 min | 70% | 5% | 76% | 72% |
+| 10 ppm, ±1 min, 1/K0 ±0.03 | | | 47% | 39% |
+
+Tighter m/z and RT tolerances do not fix it. Neither does a feature filter.
+Keeping the 50,000 most intense features per run, or those spanning eight
+or more frames, still leaves 55–66% decoy candidates at the default
+tolerances. Only ion mobility combined with tight tolerances separates true
+from random partners, and Quandenser's matching does not read ion mobility.
 
 ### MaRaCluster clusters PASEF spectra much less readily
 
@@ -118,16 +140,35 @@ already exposes the threshold as `--maracluster_pvalue_cutoff`.
 
 ---
 
-## What would make timsTOF work
+### Rerun with gap bridging and p ≤ 1e-5
 
-1. Run with `--maracluster_pvalue_cutoff -5`, or `-3`. It is a single flag;
-   the numbers above say it brings same-peptide clustering from 31% to
-   46–57%.
-2. Use `-hill_max_missing 1` on PASEF data, plus a minimum feature length.
-   The aim is a feature list closer to Orbitrap density (about 100k per
-   run), in which feature-to-feature matching can tell true partners from
-   decoys.
-3. Check charge handling in the PASEF MS2 mzML. Tide had to infer charge for
-   some spectra, and its 6% identification rate is far below what plasma
-   dda-PASEF usually gives. This only affects how many spectra the scores
-   above rest on, not the comparison itself.
+The same six runs with biosaur2 03ed8d5, `-hill_max_missing 1` and
+`--maracluster_pvalue_cutoff -5` (`/home/lukask/data/PXD039875/chain7.sh`):
+
+| | first run | rerun |
+|---|---:|---:|
+| features / run | 597k–754k | 526k–675k |
+| precursors of run 4324 inside a feature | 52.1% | 54.7% |
+| spectra in singleton clusters | 77.2% | 55.6% |
+| same-peptide pairs clustered (impurity) | 25.2% (0.45%) | 35.5% (0.75%) |
+| consensus spectra | 21,554 | 32,742 |
+| links at q < 0.02, first run pairs | 0–1,201 | 0–613 |
+| feature-group rows | 7,878 | 12,599 |
+
+Clustering and consensus spectra improve as the threshold sweep predicted.
+Inside Quandenser the gain is smaller than for MaRaCluster alone (35.5% vs
+46.4%). Match-between-runs stays broken, for the reasons above.
+
+### Next
+
+1. Give Quandenser's feature matching ion mobility. biosaur2 already
+   reports `im` per feature. The converter would carry it as an extra column,
+   and `findMatches` would require |Δ1/K0| within a tolerance, next to m/z
+   and RT.
+2. Test on a timsTOF dataset with a gradient of 30 min or more. PXD039875's
+   11.5-min runs are the hardest case for a matcher that has no ion
+   mobility.
+3. Check charge handling in the PASEF MS2 mzML. Tide had to infer charge
+   for some spectra, and its 6% identification rate is far below what
+   plasma dda-PASEF usually gives. This only affects how many spectra the
+   clustering scores rest on, not the comparison itself.
