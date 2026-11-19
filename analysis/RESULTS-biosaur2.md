@@ -159,16 +159,31 @@ Clustering and consensus spectra improve as the threshold sweep predicted.
 Inside Quandenser the gain is smaller than for MaRaCluster alone (35.5% vs
 46.4%). Match-between-runs stays broken, for the reasons above.
 
+### Ion mobility in feature matching
+
+`--align_im_tol` (commit e10e222) makes Quandenser require a feature's
+partner to lie within that 1/K0 tolerance and gives Percolator the 1/K0
+difference as a feature. Two runs (4324 → 4342, biosaur2 03ed8d5,
+p ≤ 1e-5), first matching direction:
+
+| settings | candidate pairs, target : decoy | links at q < 0.02 |
+|---|---:|---:|
+| 20 ppm, 10 RMSE, no ion mobility (old and new build) | 669,716 : 596,004 | 0 |
+| 20 ppm, 10 RMSE, 1/K0 ± 0.03 | 534,630 : 459,294 | 0 |
+| 10 ppm, 3 RMSE, 1/K0 ± 0.03 | 312,957 : 250,509 | 0 |
+
+With the option unset, the new build's feature groups, link PSMs and
+consensus spectra are byte-identical to the old build's. On these
+11.5-min runs, ion mobility does not rescue matching: random partners
+remain almost as common as real ones, as the density table predicted.
+
 ### Next
 
-1. Give Quandenser's feature matching ion mobility. biosaur2 already
-   reports `im` per feature. The converter would carry it as an extra column,
-   and `findMatches` would require |Δ1/K0| within a tolerance, next to m/z
-   and RT.
-2. Test on a timsTOF dataset with a gradient of 30 min or more. PXD039875's
-   11.5-min runs are the hardest case for a matcher that has no ion
-   mobility.
-3. Check charge handling in the PASEF MS2 mzML. Tide had to infer charge
+1. Test on a timsTOF dataset with a gradient of 30 min or more, with and
+   without `--align_im_tol`. PXD028735 is running: an HYE benchmark with
+   six runs, a 120-min gradient, and 370k PASEF spectra per run. Its runs
+   need `--biosaur2_chunk_minutes` (commit 415ecb3) to fit in memory.
+2. Check charge handling in the PASEF MS2 mzML. Tide had to infer charge
    for some spectra, and its 6% identification rate is far below what
    plasma dda-PASEF usually gives. This only affects how many spectra the
    clustering scores rest on, not the comparison itself.
