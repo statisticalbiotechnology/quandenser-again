@@ -46,6 +46,7 @@ process BIOSAUR2 {
     def run = params.biosaur2_chunk_minutes ?
         "biosaur2_chunked.py ${ms1_mzml} biosaur2.features.tsv ${params.biosaur2_chunk_minutes}" :
         "biosaur2 ${ms1_mzml} -o biosaur2.features.tsv"
+    def min_scans = params.biosaur2_min_scans ?: ''
     """
     mkdir -p dinosaur
 
@@ -57,7 +58,7 @@ process BIOSAUR2 {
         exit 1
     fi
 
-    biosaur2_to_dinosaur.py biosaur2.features.tsv > dinosaur/${mzml.baseName}.features.tsv
+    biosaur2_to_dinosaur.py biosaur2.features.tsv ${min_scans} > dinosaur/${mzml.baseName}.features.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

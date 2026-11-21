@@ -114,6 +114,13 @@ side, and keeps every feature from the chunk whose core holds its apex. On a
 PXD039875 run, 4-minute chunks gave the same features as one piece (526,276
 against 526,215) and the same precursor coverage.
 
+Even in chunks, biosaur2 reports about 1.8 million features per two-hour
+timsTOF run, and Quandenser's feature matching then needs more than 32 GB
+for six runs. `--biosaur2_min_scans 6` drops features whose monoisotopic
+hill spans fewer than six MS1 scans. On a PXD028735 run that keeps 54% of
+the features, and the share of MS2 precursors inside a feature falls only
+from 63.0% to 62.1%.
+
 biosaur2 reports each feature's ion mobility (1/K0). `--align_im_tol 0.03`
 makes Quandenser require it to agree within that tolerance when matching
 features between runs. MS2 spectra are still tied to features by m/z and
@@ -187,6 +194,7 @@ numbering intact (see `docs/modularization.md`).
 | `--maracluster_pvalue_cutoff` | `-10.0` | log(p) threshold for MS2 clustering. |
 | `--align_mz_tol` | `20.0` | Mass tolerance for matching features between runs, ppm. |
 | `--align_rtime_tol` | `10.0` | Retention-time tolerance, in standard deviations of the alignment. |
+| `--biosaur2_min_scans` | `null` | Drop biosaur2 features spanning fewer MS1 scans than this; 6 halves the feature count on two-hour timsTOF runs. |
 | `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
 | `--ft_link_cut` | `0.25` | PEP cut-off for matching features between runs. |
