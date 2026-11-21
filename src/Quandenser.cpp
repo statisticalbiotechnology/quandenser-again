@@ -161,6 +161,10 @@ bool Quandenser::parseOptions(int argc, char **argv) {
       "align-im-tol",
       "Ion mobility (1/K0) tolerance for matching features between runs, for feature files with an ionMobility column; 0 ignores ion mobility (default: 0.0).",
       "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "align-max-train",
+      "Train Percolator on at most this many candidate pairs, drawn at random, when matching features between runs, and score the rest with the trained weights. This reduces memory and time on large runs; 0 trains on all pairs (default: 0).",
+      "int");
   cmd.defineOption("I",
       "intensity-score-cut",
       "Intensity score ratio cut-off relative to the highest intensity score per cluster (lowest: 0.0, highest: 1.0, default: 0.5).",
@@ -323,6 +327,13 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   
   if (cmd.optionSet("align-im-tol")) {
     alignIonMobilityTol_ = cmd.getDouble("align-im-tol", 0.0, 10.0);
+  }
+  
+  if (cmd.optionSet("align-max-train")) {
+    /* only feature matching runs Percolator with percolatorArgs_ */
+    cmd.getInt("align-max-train", 0, 100000000);
+    percolatorArgs_.push_back("--subset-max-train");
+    percolatorArgs_.push_back(cmd.options["align-max-train"]);
   }
   
   if (cmd.optionSet("intensity-score-cut")) {

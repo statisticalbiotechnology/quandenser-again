@@ -19,7 +19,9 @@
 
 #include <vector>
 #include <map>
+#include <queue>
 #include <sstream>
+#include <fstream>
 
 #include "percolator/src/Caller.h"
 
@@ -49,6 +51,30 @@ class PercolatorAdapter : public Caller {
  protected:
   SetHandler setHandler_;
   
+  /* With --subset-max-train (maxPSMs_ > 0), Percolator's own subset mode
+     cannot apply, since it samples while reading a file and Quandenser
+     hands PSMs over in memory. Instead every PSM is written to a temporary
+     tab file, and a random subset of at most maxPSMs_, drawn per scan
+     number so that a scan's target and decoy candidates stay together, is
+     kept for training. The trained weights then score the file. Scores
+     does not own the PSMs it holds, so the scored ones are kept in
+     scoredPsms_ and deleted once the results are written. */
+  struct SubsetPsm {
+    PSMDescription* psm;
+    size_t priority, order;
+    int label;
+    bool operator<(const SubsetPsm& other) const { return priority < other.priority; }
+    static bool byOrder(const SubsetPsm& a, const SubsetPsm& b) { return a.order < b.order; }
+  };
+  std::priority_queue<SubsetPsm> subsetPsms_;
+  std::ofstream allPsmsStream_;
+  std::string allPsmsFN_;
+  size_t subsetUpperLimit_, numPsmsAdded_;
+  std::vector<PSMDescription*> scoredPsms_;
+  
+  void writePsm(const std::string& specId, int label, int scannr, 
+    const std::string& peptide, const std::vector<double>& features);
+  void scoreAllPsms(CrossValidation& crossValidation, Scores& allScores);
 };
 
 } /* namespace quandenser */
