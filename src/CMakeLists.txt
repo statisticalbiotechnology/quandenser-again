@@ -10,8 +10,6 @@ include_directories(../ext)
 
 # the percolator header files point across subdirectories...
 include_directories(../ext/percolator/src)
-include_directories(../ext/percolator/src/fido)
-include_directories(../ext/percolator/src/blas)
 include_directories(../ext/percolator/src/picked_protein)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../ext)
 
@@ -93,7 +91,7 @@ if(PROFILING AND UNIX)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g -DNDEBUG -Wno-unused-result -Wno-overflow -Wall -g -pg -fprofile-arcs -ftest-coverage")
 endif() 
 
-set(COMMON_LIBRARIES quandenserlibrary batchlibrary maraclusterlibrary perclibrary blas fido picked_protein ${PWIZ_LIBRARIES} ${Boost_LIBRARIES} ${ZLIB_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+set(COMMON_LIBRARIES quandenserlibrary batchlibrary maraclusterlibrary picked_protein perclibrary ${PWIZ_LIBRARIES} ${Boost_LIBRARIES} ${ZLIB_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
 if(MSVC)
   target_link_libraries(quandenser ${COMMON_LIBRARIES})

@@ -122,8 +122,8 @@ RUN PWIZ_MIRROR_URL="${PWIZ_MIRROR_URL}" /usr/local/bin/pin-proteowizard.sh \
 #    boost_1_86_0. That directory does not exist, rsync exits 23, and since the
 #    script has no `set -e` the failure is discarded.
 # 2. ProteoWizard bundles a *trimmed* Boost. Its 1.86 tree has no
-#    boost/unordered/ at all, while the pinned Percolator includes
-#    <boost/unordered/unordered_map.hpp> (ext/percolator/src/Scores.h:38).
+#    boost/unordered/ at all, while Percolator before 4.0 included
+#    <boost/unordered/unordered_map.hpp> (its src/Scores.h:38).
 # 3. The script used to finish by unpacking boost_asio_1_18_2 from SourceForge
 #    over the bundled headers, because Asio "is not included by the
 #    ProteoWizard boost tar but is needed for maracluster". That held for the

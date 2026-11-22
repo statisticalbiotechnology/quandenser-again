@@ -83,7 +83,7 @@ load_config_files_with_output_dir("${PERCOLATOR_SOURCE_DIR}" "${CMAKE_CURRENT_BI
 
 add_subdirectory(ext/percolator/src ./percolator EXCLUDE_FROM_ALL)
 
-foreach (TARGET perclibrary blas fido picked_protein percolator qvality)
+foreach (TARGET perclibrary percolator qvality) # picked_protein is an INTERFACE target
   target_include_directories(${TARGET} PRIVATE ${PERCOLATOR_SOURCE_DIR})
   target_include_directories(${TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ext/percolator/src) # needed for CMake generated files
 endforeach()

@@ -121,15 +121,16 @@ hill spans fewer than six MS1 scans. On a PXD028735 run that keeps 54% of
 the features, and the share of MS2 precursors inside a feature falls only
 from 63.0% to 62.1%.
 
-Quandenser's feature matching hands every candidate pair to Percolator, and
-on such runs a single matching step can have tens of millions of them.
-`--align_max_train 200000` trains Percolator on at most that many pairs,
-drawn at random by query feature, and then scores all pairs with the
-trained weights, reading them back one at a time from a temporary file. On
-two PXD039875 runs, training on 50,000 of 2.3 million pairs cut the memory
-of that matching step from 1.5 to 0.5 GB and its time from 12 minutes to
-16 seconds. On two PXD002370 runs, training on 20,000 of 141,000–186,000
-pairs kept 99.7–99.8% of the links found with training on all of them.
+Quandenser scores the candidate pairs of each matching step with Percolator
+4.0, which reads them from a temporary file next to its results. On such
+runs a step can have tens of millions of pairs. `--align_max_train 200000`
+passes Percolator's `--subset-max-train`: it trains on at most that many
+pairs and scores all of them with the trained weights. On two PXD039875
+runs (2.3 million pairs in the second step), Percolator 4.0 took 45 s and
+0.75 GB for that step with all pairs, against 12 minutes and 1.2 GB for the
+Percolator 3.05 that Quandenser used before; training on 50,000 pairs took
+21 s and no memory beyond what the run already held. On two PXD002370 runs,
+training on 20,000 of 141,000–186,000 pairs kept 99.2–99.7% of the links.
 
 biosaur2 reports each feature's ion mobility (1/K0). `--align_im_tol 0.03`
 makes Quandenser require it to agree within that tolerance when matching
@@ -206,7 +207,7 @@ numbering intact (see `docs/modularization.md`).
 | `--align_rtime_tol` | `10.0` | Retention-time tolerance, in standard deviations of the alignment. |
 | `--biosaur2_min_scans` | `null` | Drop biosaur2 features spanning fewer MS1 scans than this; 6 halves the feature count on two-hour timsTOF runs. |
 | `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
-| `--align_max_train` | `null` | Train Percolator on at most this many randomly drawn candidate pairs per feature-matching step and score the rest with the trained weights. Needs a Quandenser built from this repository; unset trains on all pairs. |
+| `--align_max_train` | `null` | Train Percolator on at most this many candidate pairs per feature-matching step (its `--subset-max-train`) and score all pairs with the trained weights. Needs a Quandenser built from this repository; unset trains on all pairs. |
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
 | `--ft_link_cut` | `0.25` | PEP cut-off for matching features between runs. |
 | `--percolator_train_fdr` / `--percolator_test_fdr` | `0.02` | FDR thresholds for the internal Percolator. Always passed together, because passing only one triggers an upstream option-parsing bug. |

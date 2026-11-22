@@ -163,7 +163,7 @@ bool Quandenser::parseOptions(int argc, char **argv) {
       "double");
   cmd.defineOption(Option::NO_SHORT_OPT,
       "align-max-train",
-      "Train Percolator on at most this many candidate pairs, drawn at random, when matching features between runs, and score the rest with the trained weights. This reduces memory and time on large runs; 0 trains on all pairs (default: 0).",
+      "Train Percolator on at most this many candidate pairs when matching features between runs (Percolator's --subset-max-train), and score all pairs with the trained weights. This reduces memory and time on large runs; 0 trains on all pairs (default: 0).",
       "int");
   cmd.defineOption("I",
       "intensity-score-cut",

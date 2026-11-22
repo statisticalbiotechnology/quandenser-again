@@ -18,21 +18,24 @@
 #define QUANDENSER_PERCOLATORADAPTER_H_
 
 #include <vector>
-#include <map>
-#include <queue>
-#include <sstream>
+#include <string>
 #include <fstream>
 
 #include "percolator/src/Caller.h"
 
-#include "Globals.h"
 #include "DinosaurFeature.h"
 
 namespace quandenser {
 
+/* Runs Percolator on the candidate links of a feature-matching step. The
+   PSMs are written to a tab-delimited file next to the result file and
+   Percolator reads that file with Caller::run, as the percolator executable
+   does, so that its options for large inputs apply: --subset-max-train
+   (-N) samples spectra while reading, and the SVMs train one fold at a time
+   by default. */
 class PercolatorAdapter : public Caller {
  public:
-  PercolatorAdapter();
+  PercolatorAdapter() : Caller() {}
   
   bool parseOptions(const std::vector<std::string>& percolatorArgs) {
     std::vector<const char*> percolatorArgv;
@@ -49,32 +52,9 @@ class PercolatorAdapter : public Caller {
   
   void process();
  protected:
-  SetHandler setHandler_;
-  
-  /* With --subset-max-train (maxPSMs_ > 0), Percolator's own subset mode
-     cannot apply, since it samples while reading a file and Quandenser
-     hands PSMs over in memory. Instead every PSM is written to a temporary
-     tab file, and a random subset of at most maxPSMs_, drawn per scan
-     number so that a scan's target and decoy candidates stay together, is
-     kept for training. The trained weights then score the file. Scores
-     does not own the PSMs it holds, so the scored ones are kept in
-     scoredPsms_ and deleted once the results are written. */
-  struct SubsetPsm {
-    PSMDescription* psm;
-    size_t priority, order;
-    int label;
-    bool operator<(const SubsetPsm& other) const { return priority < other.priority; }
-    static bool byOrder(const SubsetPsm& a, const SubsetPsm& b) { return a.order < b.order; }
-  };
-  std::priority_queue<SubsetPsm> subsetPsms_;
-  std::ofstream allPsmsStream_;
-  std::string allPsmsFN_;
-  size_t subsetUpperLimit_, numPsmsAdded_;
-  std::vector<PSMDescription*> scoredPsms_;
-  
-  void writePsm(const std::string& specId, int label, int scannr, 
-    const std::string& peptide, const std::vector<double>& features);
-  void scoreAllPsms(CrossValidation& crossValidation, Scores& allScores);
+  std::string pinFN_;
+  std::ofstream pinStream_;
+  std::string line_;
 };
 
 } /* namespace quandenser */
