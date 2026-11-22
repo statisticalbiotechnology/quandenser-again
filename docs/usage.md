@@ -113,6 +113,10 @@ each run in 20-minute retention-time chunks with 2 minutes of overlap on each
 side, and keeps every feature from the chunk whose core holds its apex. On a
 PXD039875 run, 4-minute chunks gave the same features as one piece (526,276
 against 526,215) and the same precursor coverage.
+`--biosaur2_chunk_workers 3` runs three chunks of a run at once, with three
+times the memory; the features are the same as with one. It shortens feature
+detection when there are fewer runs than CPUs, and otherwise runs fewer
+files side by side to the same end.
 
 Even in chunks, biosaur2 reports about 1.8 million features per two-hour
 timsTOF run, and Quandenser's feature matching then needs more than 32 GB
@@ -205,6 +209,8 @@ numbering intact (see `docs/modularization.md`).
 | `--maracluster_pvalue_cutoff` | `-10.0` | log(p) threshold for MS2 clustering. |
 | `--align_mz_tol` | `20.0` | Mass tolerance for matching features between runs, ppm. |
 | `--align_rtime_tol` | `10.0` | Retention-time tolerance, in standard deviations of the alignment. |
+| `--biosaur2_chunk_minutes` | `null` | Run biosaur2 in retention-time chunks of this many minutes, which bounds its memory; needed for two-hour timsTOF runs. |
+| `--biosaur2_chunk_workers` | `null` | Number of `--biosaur2_chunk_minutes` chunks to run at once, each with its own memory; the features do not change. |
 | `--biosaur2_min_scans` | `null` | Drop biosaur2 features spanning fewer MS1 scans than this; 6 halves the feature count on two-hour timsTOF runs. |
 | `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
 | `--align_max_train` | `null` | Train Percolator on at most this many candidate pairs per feature-matching step (its `--subset-max-train`) and score all pairs with the trained weights. Needs a Quandenser built from this repository; unset trains on all pairs. |

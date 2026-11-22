@@ -43,8 +43,12 @@ process BIOSAUR2 {
     script:
     def args = task.ext.args ?: ''
     // Long runs in retention-time chunks, which bounds memory; see the script.
+    // -j runs chunks side by side and is left out at 1, so that the command,
+    // and with it the task hash, stays as it was without the option.
+    def workers = params.biosaur2_chunk_workers ? params.biosaur2_chunk_workers as int : 1
+    def jobs = workers > 1 ? "-j ${workers} " : ''
     def run = params.biosaur2_chunk_minutes ?
-        "biosaur2_chunked.py ${ms1_mzml} biosaur2.features.tsv ${params.biosaur2_chunk_minutes}" :
+        "biosaur2_chunked.py ${jobs}${ms1_mzml} biosaur2.features.tsv ${params.biosaur2_chunk_minutes}" :
         "biosaur2 ${ms1_mzml} -o biosaur2.features.tsv"
     def min_scans = params.biosaur2_min_scans ?: ''
     """
