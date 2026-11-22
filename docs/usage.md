@@ -136,6 +136,14 @@ Percolator 3.05 that Quandenser used before; training on 50,000 pairs took
 21 s and no memory beyond what the run already held. On two PXD002370 runs,
 training on 20,000 of 141,000–186,000 pairs kept 99.2–99.7% of the links.
 
+Quandenser then builds the consensus spectra with MaRaCluster in its own
+process. MaRaCluster reads the clustered MS2 spectra of up to 40 runs into
+memory before it writes any, and with six two-hour timsTOF runs that took
+more than 32 GB. `--consensus_files_per_batch 2` reads two runs at a time;
+the consensus spectra do not change. Quandenser also frees its features and
+links before this step, which on two PXD039875 runs lowered the memory at
+its start from 1.6 to 0.6 GB.
+
 biosaur2 reports each feature's ion mobility (1/K0). `--align_im_tol 0.03`
 makes Quandenser require it to agree within that tolerance when matching
 features between runs. MS2 spectra are still tied to features by m/z and
@@ -214,6 +222,7 @@ numbering intact (see `docs/modularization.md`).
 | `--biosaur2_min_scans` | `null` | Drop biosaur2 features spanning fewer MS1 scans than this; 6 halves the feature count on two-hour timsTOF runs. |
 | `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
 | `--align_max_train` | `null` | Train Percolator on at most this many candidate pairs per feature-matching step (its `--subset-max-train`) and score all pairs with the trained weights. Needs a Quandenser built from this repository; unset trains on all pairs. |
+| `--consensus_files_per_batch` | `null` | Number of runs whose clustered MS2 spectra the consensus step holds in memory at once, at least 2; unset keeps MaRaCluster's 40. Needs a Quandenser built from this repository. |
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
 | `--ft_link_cut` | `0.25` | PEP cut-off for matching features between runs. |
 | `--percolator_train_fdr` / `--percolator_test_fdr` | `0.02` | FDR thresholds for the internal Percolator. Always passed together, because passing only one triggers an upstream option-parsing bug. |

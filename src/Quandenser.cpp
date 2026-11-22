@@ -20,6 +20,12 @@
 #include <omp.h>
 #endif
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
+
+#include "maracluster/src/MSFileMerger.h"
+
 namespace quandenser {
 
 Quandenser::Quandenser() : call_(""), fnPrefix_("Quandenser"), seed_(1u),
@@ -148,6 +154,10 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   cmd.defineOption(Option::NO_SHORT_OPT,
       "consensus-max-peaks",
       "Number of most intense peaks to keep in a consensus spectrum, 0 keeps all of them, used by --consensus-method ppm (default: 160).",
+      "int");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "consensus-files-per-batch",
+      "Number of spectrum files whose clustered spectra the consensus step holds in memory at once, at least 2. MaRaCluster's default of 40 holds all of them for most experiments; 2 bounds the memory by the two largest files (default: 40).",
       "int");
   cmd.defineOption("P",
       "align-mz-tol",
@@ -315,6 +325,16 @@ bool Quandenser::parseOptions(int argc, char **argv) {
     cmd.getInt("consensus-max-peaks", 0, 100000);
     maraclusterArgs_.push_back("--consensusMaxPeaks");
     maraclusterArgs_.push_back(cmd.options["consensus-max-peaks"]);
+  }
+  
+  if (cmd.optionSet("consensus-files-per-batch")) {
+    /* MSFileMerger::splitSpecFilesByConsensusSpec reads this many files
+       and keeps all their clustered spectra before writing any. Its file
+       list starts with the consensus output file, and a batch holding only
+       that file writes no temporary file, which the merge then fails to
+       open; with at least 2 per batch the first batch also holds a run. */
+    maracluster::MSFileMerger::maxMSFilePtrs_ = 
+        cmd.getInt("consensus-files-per-batch", 2, 100000);
   }
   
   if (cmd.optionSet("align-mz-tol")) {
@@ -738,6 +758,8 @@ int Quandenser::run() {
   }
   featureGroups.singleLinkClustering(featureAlignmentQueue, 
       featureAlignment.getFeatureMatches(), tmpFilePrefixGroup, tmpFilePrefixAlign);
+  std::map<FilePair, std::map<int, FeatureIdxMatch> >().swap(
+      featureAlignment.getFeatureMatches());
   
   /*****************************************************************************  
     Step 6: Run MaRaCluster again, now with newly discovered features from
@@ -792,9 +814,15 @@ int Quandenser::run() {
       maraclusterAdapter.getSpectrumClusterToConsensusFeatures());
   featureGroups.clear(); // unload feature groups from memory
   
-  if (useTempFiles_) {
-    unloadAllFeatures(allFeatures);
-  }
+  /* The consensus step below runs in this process and needs none of the
+     features and maps above; on long timsTOF runs they hold gigabytes. */
+  std::vector<DinosaurFeatureList>().swap(allFeatures);
+  std::map<FeatureId, std::vector<int> >().swap(featureToSpectrumCluster);
+  spectrumToPrecursorMap = SpectrumToPrecursorMap(fileList.size());
+  spectrumToPrecursorMapExtraFeatures = SpectrumToPrecursorMap(fileList.size());
+#ifdef __GLIBC__
+  malloc_trim(0); /* hand the freed memory back to the system */
+#endif
   
   /*****************************************************************************  
     Step 9: Create and write consensus spectra
