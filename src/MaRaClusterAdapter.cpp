@@ -36,7 +36,8 @@ int MaRaClusterAdapter::createIndex() {
   
   if (!Globals::fileExists(datFNFile_) || !Globals::fileExists(scanInfoFN_)) {    
     SpectrumFiles spectrumFiles(outputFolder_, chargeUncertainty_, 
-                                featureLists_, spectrumToPrecursorMap_);
+                                featureLists_, spectrumToPrecursorMap_,
+                                precursorIonMobilityTol_, instrumentPrecursorRTimeTol_);
     spectrumFiles.splitByPrecursorMz(fileList, datFNFile_, peakCountFN_, 
         scanInfoFN_, precursorTolerance_, precursorToleranceDa_);
   } else {

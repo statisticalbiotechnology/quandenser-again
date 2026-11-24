@@ -72,6 +72,7 @@ class Quandenser {
   float intensityScoreThreshold_;
   
   float maraclusterPpmTol_, alignPpmTol_, alignRTimeStdevTol_, alignIonMobilityTol_;
+  float precursorIonMobilityTol_, instrumentPrecursorRTimeTol_;
   float decoyOffset_;
   float linkPEPThreshold_, linkPEPMbrSearchThreshold_;
   int maxFeatureCandidates_;

@@ -33,6 +33,7 @@ Quandenser::Quandenser() : call_(""), fnPrefix_("Quandenser"), seed_(1u),
     spectrumBatchFileFN_(""), outputFolder_("Quandenser_output"),
     outputSpectrumFile_(""), maraclusterPpmTol_(20.0f),
     alignPpmTol_(20.0f), alignRTimeStdevTol_(10.0f), alignIonMobilityTol_(0.0f),
+    precursorIonMobilityTol_(0.0f), instrumentPrecursorRTimeTol_(-1.0f),
     decoyOffset_(5.0 * 1.000508),
     linkPEPThreshold_(0.25), linkPEPMbrSearchThreshold_(0.05),
     maxFeatureCandidates_(2), useTempFiles_(false) {}
@@ -170,6 +171,14 @@ bool Quandenser::parseOptions(int argc, char **argv) {
   cmd.defineOption(Option::NO_SHORT_OPT,
       "align-im-tol",
       "Ion mobility (1/K0) tolerance for matching features between runs, for feature files with an ionMobility column; 0 ignores ion mobility (default: 0.0).",
+      "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "precursor-im-tol",
+      "Ion mobility (1/K0) tolerance between an MS2 spectrum and the features taken as its precursor candidates, for spectra that report ion mobility and feature files with an ionMobility column; 0 ignores ion mobility (default: 0.0).",
+      "double");
+  cmd.defineOption(Option::NO_SHORT_OPT,
+      "instrument-precursor-rt-tol",
+      "When none of an MS2 spectrum's precursor candidates has the charge and m/z (within 20 ppm) of the precursor the instrument selected, add the feature that has them and whose retention-time span lies closest to the spectrum, at most this many minutes away, or else the instrument's precursor itself; the latter only places the spectrum in clustering and reaches no feature group. Unset adds neither (default: unset).",
       "double");
   cmd.defineOption(Option::NO_SHORT_OPT,
       "align-max-train",
@@ -349,6 +358,14 @@ bool Quandenser::parseOptions(int argc, char **argv) {
     alignIonMobilityTol_ = cmd.getDouble("align-im-tol", 0.0, 10.0);
   }
   
+  if (cmd.optionSet("precursor-im-tol")) {
+    precursorIonMobilityTol_ = cmd.getDouble("precursor-im-tol", 0.0, 10.0);
+  }
+  
+  if (cmd.optionSet("instrument-precursor-rt-tol")) {
+    instrumentPrecursorRTimeTol_ = cmd.getDouble("instrument-precursor-rt-tol", 0.0, 1000.0);
+  }
+  
   if (cmd.optionSet("align-max-train")) {
     /* only feature matching runs Percolator with percolatorArgs_ */
     cmd.getInt("align-max-train", 0, 100000000);
@@ -410,7 +427,8 @@ void Quandenser::runMaRaCluster(const std::string& maRaClusterSubFolder,
   maraclusterArgs.push_back(maraclusterFolder.string());
   
   std::string spectrumOutputFile = ""; /* Not needed here */
-  MaRaClusterAdapter maraclusterAdapter(allFeatures, spectrumToPrecursorMap, spectrumOutputFile);
+  MaRaClusterAdapter maraclusterAdapter(allFeatures, spectrumToPrecursorMap, spectrumOutputFile,
+      precursorIonMobilityTol_, instrumentPrecursorRTimeTol_);
   maraclusterAdapter.parseOptions(maraclusterArgs);
   
   boost::filesystem::path spectrumToPrecursorFilePath(maraclusterFolder);

@@ -35,9 +35,13 @@ namespace quandenser {
 class MaRaClusterAdapter : public maracluster::MaRaCluster {
  public:
   MaRaClusterAdapter(const std::vector<DinosaurFeatureList>& featureLists,
-      SpectrumToPrecursorMap& specToPrecMap, std::string spectrumOutputFile) :
+      SpectrumToPrecursorMap& specToPrecMap, std::string spectrumOutputFile,
+      float precursorIonMobilityTol = 0.0f, 
+      float instrumentPrecursorRTimeTol = -1.0f) :
         MaRaCluster(), featureLists_(featureLists), 
-        spectrumToPrecursorMap_(specToPrecMap) {
+        spectrumToPrecursorMap_(specToPrecMap),
+        precursorIonMobilityTol_(precursorIonMobilityTol),
+        instrumentPrecursorRTimeTol_(instrumentPrecursorRTimeTol) {
     spectrumOutFN_ = spectrumOutputFile;
   }
   
@@ -72,6 +76,7 @@ class MaRaClusterAdapter : public maracluster::MaRaCluster {
   
   const std::vector<DinosaurFeatureList>& featureLists_;
   SpectrumToPrecursorMap& spectrumToPrecursorMap_;
+  float precursorIonMobilityTol_, instrumentPrecursorRTimeTol_; /* see SpectrumFiles */
   
   std::map<int, std::vector<DinosaurFeature> > spectrumClusterToConsensusFeatures_;
     

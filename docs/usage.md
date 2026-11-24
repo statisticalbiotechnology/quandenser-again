@@ -146,8 +146,21 @@ its start from 1.6 to 0.6 GB.
 
 biosaur2 reports each feature's ion mobility (1/K0). `--align_im_tol 0.03`
 makes Quandenser require it to agree within that tolerance when matching
-features between runs. MS2 spectra are still tied to features by m/z and
-retention time only.
+features between runs. `--precursor_im_tol 0.05` does the same when tying
+MS2 spectra to their precursor features, using the 1/K0 that tdf2mzml writes
+for each PASEF spectrum: without it, a spectrum's candidates are all features
+in its isolation window whose retention-time span covers it, a median of 10
+on PXD028735, a third of them singly charged.
+
+`--instrument_precursor_rt_tol 0.5` adds the precursor the instrument
+selected when no candidate has its charge and m/z. biosaur2's features on
+timsTOF data span a median of 0.26 min, and on PXD028735 16% of the
+identifiable spectra have a feature with their precursor's m/z and charge
+whose span misses the spectrum. The option
+adds the feature with the instrument's charge and m/z (within 20 ppm) that
+lies closest in retention time, at most 0.5 min outside its span, or else
+the instrument's precursor itself, which only places the spectrum in
+clustering.
 
 ## What you get
 
@@ -221,6 +234,8 @@ numbering intact (see `docs/modularization.md`).
 | `--biosaur2_chunk_workers` | `null` | Number of `--biosaur2_chunk_minutes` chunks to run at once, each with its own memory; the features do not change. |
 | `--biosaur2_min_scans` | `null` | Drop biosaur2 features spanning fewer MS1 scans than this; 6 halves the feature count on two-hour timsTOF runs. |
 | `--align_im_tol` | `null` | Ion-mobility (1/K0) tolerance for matching features between runs. Needs biosaur2 features from timsTOF data and a Quandenser built from this repository; unset ignores ion mobility. |
+| `--precursor_im_tol` | `null` | Ion-mobility (1/K0) tolerance between an MS2 spectrum and the features taken as its precursor candidates. Needs timsTOF spectra, biosaur2 features and a Quandenser built from this repository; unset ignores ion mobility. |
+| `--instrument_precursor_rt_tol` | `null` | When no precursor candidate of an MS2 spectrum has the charge and m/z of the instrument's precursor, add the feature that does and lies closest in retention time, at most this many minutes outside its span, or else the instrument's precursor itself. Needs a Quandenser built from this repository; unset adds neither. |
 | `--align_max_train` | `null` | Train Percolator on at most this many candidate pairs per feature-matching step (its `--subset-max-train`) and score all pairs with the trained weights. Needs a Quandenser built from this repository; unset trains on all pairs. |
 | `--consensus_files_per_batch` | `null` | Number of runs whose clustered MS2 spectra the consensus step holds in memory at once, at least 2; unset keeps MaRaCluster's 40. Needs a Quandenser built from this repository. |
 | `--intensity_score_cut` | `0.5` | Intensity score ratio cut-off per cluster. |
