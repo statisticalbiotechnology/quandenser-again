@@ -177,13 +177,120 @@ consensus spectra are byte-identical to the old build's. On these
 11.5-min runs, ion mobility does not rescue matching: random partners
 remain almost as common as real ones, as the density table predicted.
 
+---
+
+## timsTOF: PXD028735 (HYE, dda-PASEF, 120-min gradient)
+
+Six timsTOF Pro runs of two human/yeast/E. coli mixtures (A, B; three runs
+each), with a 120-min gradient and 371k MS2 spectra per run. True log2 A/B
+ratios are human 0, yeast +1 and E. coli −2. The data and the run script are
+under `/home/lukask/data/PXD028735` (`chain11.sh`). Settings:
+- biosaur2 03ed8d5 with `-hill_max_missing 1`, 20-min RT chunks, and features
+  of at least six MS1 scans (`--biosaur2_min_scans 6`: 960k–977k features
+  per run, against 1.78M unfiltered);
+- `--maracluster_pvalue_cutoff -5`, `--max_missing 2`,
+  `--consensus_files_per_batch 2`, Percolator 4.0.
+
+Searches are `benchmark/search.sh` against human + yeast + E. coli. Ratios come
+from `benchmark/hye_ratios.py`.
+
+### Memory
+
+The first attempt was killed at 32 GB in the consensus step. Two changes
+brought Quandenser's peak down to 16.9 GB (2 h 51 min on 4 CPUs):
+- Quandenser frees its matching state before that step (f02a13c).
+- `--consensus_files_per_batch 2` keeps two runs' clustered spectra in
+  memory instead of all six.
+
+Percolator 4.0 (e7d7010) made feature matching more than ten times faster.
+biosaur2 needed 9.5 GB and about 56 min per run.
+
+Tide 4.1 does not release memory while it searches. A file of 200,000
+consensus spectra took more than 16 GB, so `search.sh` now searches each
+consensus file separately (dc854fd).
+
+### Ion mobility in feature matching works on a long gradient
+
+| | no ion mobility | `--align_im_tol 0.03` |
+|---|---:|---:|
+| links at q < 0.02, first run pairs | 10,371–22,697 | 20,669–82,817 |
+| feature-group rows | 513,324 | 1,745,656 |
+| consensus spectra | 741,230 | 2,011,165 |
+| PSMs at 1% FDR | 44,414 | 101,836 |
+| distinct peptides at 1% FDR | 14,747 | 35,158 |
+| identified feature groups (peptides) | 13,781 | 32,856 |
+| ... quantified in all six runs | 4,050 | 20,402 |
+| human A/B, median (robust sd) | −0.15 (0.41) | −0.17 (0.39) |
+| yeast A/B, expected +1 | +1.08 (0.55) | +1.01 (0.55) |
+| E. coli A/B, expected −2 | −2.42 (0.83) | −2.39 (0.87) |
+
+Unlike on the 11.5-min PXD039875 runs, ion mobility pays off here. It
+raises the number of identified, quantified peptides 2.4-fold and leaves
+ratio accuracy unchanged.
+
+### Why so few consensus spectra are identified
+
+Only 5–6% of consensus spectra are identified. As a baseline, run A_Alpha_01's
+raw MS2 spectra were searched with the same settings, using the instrument's
+precursor m/z and charge (`benchmark/pasef_extract_ms2.py`,
+`benchmark/search_raw.sh`). That identifies 105,537 of 370,909 spectra
+(28.5%) and 42,134 distinct peptides from this run alone. The spectra and
+the search are therefore not the problem.
+
+`benchmark/pasef_candidates.py` and `benchmark/pasef_trace_spectra.py`
+follow that run's spectra through Quandenser:
+
+| A_Alpha_01, 370,909 MS2 spectra | no ion mobility | `--align_im_tol 0.03` |
+|---|---:|---:|
+| precursor candidates per spectrum, median | 10 | 10 |
+| instrument precursor among the candidates | 67.0% | 67.0% |
+| spectra in clusters without a consensus spectrum | 27.8% | 6.5% |
+| consensus spectra per cluster, mean over spectra | 1.6 | 4.1 |
+| a consensus spectrum carries the instrument precursor | 24.5% | 55.2% |
+| cluster identified | 13.1% | 29.5% |
+| of the 105,537 raw identifications: cluster identified | 32.4% | 72.5% |
+
+Three steps lose spectra:
+
+1. **Candidate assignment ignores ion mobility and the instrument's charge.**
+   Quandenser gives a spectrum every feature whose m/z lies inside the
+   isolation window and whose RT span covers the spectrum
+   (`src/SpectrumFiles.cpp`). With nearly a million features per run, that is
+   a median of ten candidates. 35% of candidates are singly charged, whereas
+   the instrument assigns charge 1 to only 5% of precursors. Requiring the
+   feature's 1/K0 to lie within 0.05 of the spectrum's halves the number of
+   candidates (median 5) and keeps the true one almost as often (65.3%
+   against 67.0%).
+2. **The instrument's precursor is no candidate for a third of spectra.** For
+   18% of the spectra the raw search identifies, no feature matches the
+   precursor's charge and m/z (±30 ppm).
+3. **A consensus spectrum's precursors come only from feature groups.** For
+   each cluster, Quandenser keeps the feature groups linked to its spectra
+   that are present in at least four of six runs (`--max_missing 2`) and
+   within 0.5 of the best summed log intensity (`src/FeatureGroups.cpp`,
+   `src/ConsensusMerger.cpp`). A precursor that is not matched across runs
+   gets no consensus spectrum. Without ion mobility, this costs 42.7% of all
+   spectra: their true precursor is a candidate, but it is in no feature
+   group (`benchmark/pasef_lost_precursor.py`). Losing the intensity
+   contest costs only 1.2%.
+
+The consensus spectra that are written carry many wrong precursors, mostly
+intense singly charged ions present in every run. 31% of consensus spectra
+are charge 1 without ion mobility and 24% with it. Without ion mobility,
+2.5% of the charge-1 ones are identified. That is why the identification rate per consensus
+spectrum stays at 5–6% even after ion mobility doubles the identifications.
+
+Two smaller points:
+- **Mass accuracy.** Precursor mass errors of the identified peptides centre
+  on +8.5 ppm, and 90% lie between +1 and +16 ppm. The ±20 ppm search window
+  therefore cuts off only the far tail.
+- **Peptide masses in Crux output.** Crux reports peptide masses without
+  cysteine carbamidomethylation, so mass errors must be computed on
+  peptides without C.
+
 ### Next
 
-1. Test on a timsTOF dataset with a gradient of 30 min or more, with and
-   without `--align_im_tol`. PXD028735 is running: an HYE benchmark with
-   six runs, a 120-min gradient, and 370k PASEF spectra per run. Its runs
-   need `--biosaur2_chunk_minutes` (commit 415ecb3) to fit in memory.
-2. Check charge handling in the PASEF MS2 mzML. Tide had to infer charge
-   for some spectra, and its 6% identification rate is far below what
-   plasma dda-PASEF usually gives. This only affects how many spectra the
-   clustering scores rest on, not the comparison itself.
+1. Use ion mobility when assigning precursor candidates to MS2 spectra, and
+   fall back on the instrument's precursor when no feature matches it.
+2. Search with one missed cleavage and Met oxidation. The index here allows
+   neither, whereas the dataset paper allowed one missed cleavage.
